@@ -206,6 +206,12 @@ class Hub:
     def register_update_callback(self, callback) -> None:
         self._update_callbacks.append(callback)
 
+    def unregister_update_callback(self, callback) -> None:
+        try:
+            self._update_callbacks.remove(callback)
+        except ValueError:
+            pass
+
     async def async_teardown(self) -> None:
         for unsub in self._unsub_listeners:
             unsub()

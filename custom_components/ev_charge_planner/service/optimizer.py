@@ -145,7 +145,6 @@ def _cost_at_start(
 
 
 def _optimize_sequential(
-    active: list[Vehicle],
     prices: list[PriceSlot],
     entry_hours: float,
     vehicle_params: list[dict],
@@ -261,7 +260,7 @@ def optimize_joint(
             "Falling back to sequential optimization.",
             total_combos, _MAX_JOINT_COMBINATIONS,
         )
-        return _optimize_sequential(active, prices, entry_hours, vehicle_params, results)
+        return _optimize_sequential(prices, entry_hours, vehicle_params, results)
 
     best_total_cost = float("inf")
     best_combo: tuple[int, ...] | None = None

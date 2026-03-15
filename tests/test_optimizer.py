@@ -271,3 +271,31 @@ class TestOptimizeJoint:
         v = make_vehicle("Tesla", 50, 80)
         results = optimize_joint([v], [], now)
         assert results["Tesla"].best_period is None
+
+    def test_sequential_fallback_triggered(self, monkeypatch):
+        """When combinations exceed the limit, sequential fallback is used."""
+        import custom_components.ev_charge_planner.service.optimizer as opt_mod
+
+        # Set limit very low to force fallback
+        monkeypatch.setattr(opt_mod, "_MAX_JOINT_COMBINATIONS", 1)
+
+        now = datetime(2024, 1, 1, 0, 0)
+        values = [10.0] * 24
+        values[2] = 0.1
+        values[3] = 0.1
+        values[10] = 0.1
+        values[11] = 0.1
+        prices = make_prices(datetime(2024, 1, 1, 0, 0), values)
+
+        v1 = make_vehicle("Car1", 0, 100, battery_kwh=22, charge_power_kw=11,
+                          deadline=datetime(2024, 1, 2, 7, 0))
+        v2 = make_vehicle("Car2", 0, 100, battery_kwh=22, charge_power_kw=11,
+                          deadline=datetime(2024, 1, 2, 7, 0))
+
+        results = optimize_joint([v1, v2], prices, now)
+
+        # Both should still get valid results
+        assert results["Car1"].best_period is not None
+        assert results["Car2"].best_period is not None
+        # Sequential assigns greedily — they should not get identical windows
+        assert results["Car1"].best_period.start != results["Car2"].best_period.start

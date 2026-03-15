@@ -49,6 +49,10 @@ class ChargePlannerSensor(SensorEntity):
         await self._hub.async_update()
         self._update_from_hub()
 
+    async def async_will_remove_from_hass(self) -> None:
+        """Unregister callback when entity is removed."""
+        self._hub.unregister_update_callback(self._on_hub_update)
+
     @callback
     def _on_hub_update(self) -> None:
         """Handle hub update notification."""
