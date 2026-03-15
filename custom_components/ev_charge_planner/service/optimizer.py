@@ -56,7 +56,7 @@ def find_periods_single(
     duration: float,
     deadline: datetime,
     cutoff: datetime,
-    fees_ex_vat: float,
+    fees_inc_vat: float,
     vat_multiplier: float,
     charge_power_kw: float,
     other_windows: list[tuple[datetime, datetime]] | None = None,
@@ -68,7 +68,7 @@ def find_periods_single(
         duration: Required charging time in hours (quarter-hour resolution).
         deadline: Car must be ready by this time.
         cutoff: Earliest allowed start time.
-        fees_ex_vat: Grid fees excluding VAT (kr/kWh).
+        fees_inc_vat: Grid fees excluding VAT (kr/kWh).
         vat_multiplier: VAT multiplier (e.g. 1.25 for Swedish 25%).
         charge_power_kw: Charging power in kW.
         other_windows: Other vehicles' active charging windows for overlap calc.
@@ -92,7 +92,7 @@ def find_periods_single(
             i,
             duration,
             deadline,
-            fees_ex_vat,
+            fees_inc_vat,
             vat_multiplier,
             charge_power_kw,
             entry_hours,
@@ -119,7 +119,7 @@ def _cost_at_start(
     start_idx: int,
     duration: float,
     deadline: datetime,
-    fees_ex_vat: float,
+    fees_inc_vat: float,
     vat_multiplier: float,
     charge_power_kw: float,
     entry_hours: float,
@@ -144,7 +144,7 @@ def _cost_at_start(
                     break
 
         eff_hours += entry_hours * overlap_factor
-        price_sum += (q.value + fees_ex_vat) * vat_multiplier
+        price_sum += q.value * vat_multiplier + fees_inc_vat
         slots_used += 1
 
         if eff_hours >= duration:
@@ -181,7 +181,7 @@ def _optimize_sequential(
             v.duration_hours,
             vp["deadline"],
             vp["cutoff"],
-            v.grid_fees_ex_vat,
+            v.fees_inc_vat,
             v.vat_multiplier,
             v.charge_power_kw,
             other_windows=assigned_windows if assigned_windows else None,
@@ -242,7 +242,7 @@ def optimize_joint(
             v.duration_hours,
             deadline,
             cutoff,
-            v.grid_fees_ex_vat,
+            v.fees_inc_vat,
             v.vat_multiplier,
             v.charge_power_kw,
         )
@@ -314,7 +314,7 @@ def optimize_joint(
                 start_idx,
                 v.duration_hours,
                 deadline,
-                v.grid_fees_ex_vat,
+                v.fees_inc_vat,
                 v.vat_multiplier,
                 v.charge_power_kw,
                 entry_hours,
@@ -350,7 +350,7 @@ def optimize_joint(
                 start_idx,
                 v.duration_hours,
                 deadline,
-                v.grid_fees_ex_vat,
+                v.fees_inc_vat,
                 v.vat_multiplier,
                 v.charge_power_kw,
                 entry_hours,
@@ -363,7 +363,7 @@ def optimize_joint(
                 v.duration_hours,
                 deadline,
                 cutoff,
-                v.grid_fees_ex_vat,
+                v.fees_inc_vat,
                 v.vat_multiplier,
                 v.charge_power_kw,
                 other_windows=other_wins,

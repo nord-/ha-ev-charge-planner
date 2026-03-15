@@ -13,7 +13,9 @@
                     "charge_power_entity": "Charge power sensor (entity_id, optional)",
                     "deadline_entity": "Deadline (input_datetime entity_id)",
                     "price_sensor": "Price sensor (NordPool entity_id)",
-                    "grid_fees_ex_vat": "Grid fees excl. VAT (kr/kWh)"
+                    "fees_entity": "Fees sensor incl. VAT (entity_id, optional)",
+                    "fees_fixed": "Fees incl. VAT (kr/kWh, if no entity)",
+                    "vat_percent": "VAT (%)"
                 }
             },
             "add_vehicle": {
@@ -28,13 +30,37 @@
                     "charge_power_entity": "Charge power sensor (entity_id, optional)",
                     "deadline_entity": "Deadline (input_datetime entity_id)",
                     "price_sensor": "Price sensor (NordPool entity_id)",
-                    "grid_fees_ex_vat": "Grid fees excl. VAT (kr/kWh)"
+                    "fees_entity": "Fees sensor incl. VAT (entity_id, optional)",
+                    "fees_fixed": "Fees incl. VAT (kr/kWh, if no entity)",
+                    "vat_percent": "VAT (%)"
                 }
             },
             "finish": {
                 "title": "Finish setup",
                 "data": {
                     "add_another": "Add another vehicle?"
+                }
+            }
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "title": "Select vehicle to edit",
+                "data": {
+                    "vehicle_index": "Vehicle"
+                }
+            },
+            "edit_vehicle": {
+                "title": "Edit {vehicle_name}",
+                "data": {
+                    "soc_target_entity": "Target SoC sensor (entity_id)",
+                    "soc_target_fixed": "Target SoC (fixed %)",
+                    "charge_power": "Charge power (kW, fixed)",
+                    "charge_power_entity": "Charge power sensor (entity_id)",
+                    "fees_entity": "Fees sensor incl. VAT (entity_id)",
+                    "fees_fixed": "Fees incl. VAT (kr/kWh)",
+                    "vat_percent": "VAT (%)"
                 }
             }
         }

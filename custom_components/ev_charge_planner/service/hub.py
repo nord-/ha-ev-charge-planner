@@ -14,16 +14,19 @@ from ..const import (
     CONF_CHARGE_POWER,
     CONF_CHARGE_POWER_ENTITY,
     CONF_DEADLINE_ENTITY,
+    CONF_FEES_ENTITY,
+    CONF_FEES_FIXED,
     CONF_GRID_FEES_EX_VAT,
     CONF_PRICE_SENSOR,
     CONF_SOC_SENSOR,
     CONF_SOC_TARGET,
     CONF_SOC_TARGET_ENTITY,
     CONF_SOC_TARGET_FIXED,
+    CONF_VAT_PERCENT,
     CONF_VEHICLE_NAME,
-    DEFAULT_GRID_FEES,
+    DEFAULT_FEES,
     DEFAULT_SOC_TARGET,
-    DEFAULT_VAT_MULTIPLIER,
+    DEFAULT_VAT_PERCENT,
     SPOTPRICE_THROTTLE_SECONDS,
 )
 from .dt_model import DTModel
@@ -93,6 +96,7 @@ class Hub:
                 CONF_SOC_TARGET_ENTITY,
                 CONF_CHARGE_POWER_ENTITY,
                 CONF_DEADLINE_ENTITY,
+                CONF_FEES_ENTITY,
             ):
                 entity = vc.get(key)
                 if entity:
@@ -170,6 +174,19 @@ class Hub:
             # Deadline from input_datetime entity
             deadline = self._get_deadline(vc.get(CONF_DEADLINE_ENTITY), now)
 
+            # Fees: entity or fixed value (inc VAT)
+            fees_entity = vc.get(CONF_FEES_ENTITY)
+            if fees_entity:
+                fees_inc_vat = self._get_state_float(fees_entity, DEFAULT_FEES)
+            else:
+                fees_inc_vat = float(
+                    vc.get(CONF_FEES_FIXED, vc.get(CONF_GRID_FEES_EX_VAT, DEFAULT_FEES))
+                )
+
+            # VAT multiplier from percent
+            vat_percent = float(vc.get(CONF_VAT_PERCENT, DEFAULT_VAT_PERCENT))
+            vat_multiplier = 1 + vat_percent / 100
+
             v = Vehicle(
                 name=name,
                 battery_capacity_kwh=float(vc[CONF_BATTERY_CAPACITY]),
@@ -177,8 +194,8 @@ class Hub:
                 current_soc=current_soc,
                 target_soc=target_soc,
                 deadline=deadline,
-                grid_fees_ex_vat=float(vc.get(CONF_GRID_FEES_EX_VAT, DEFAULT_GRID_FEES)),
-                vat_multiplier=DEFAULT_VAT_MULTIPLIER,
+                fees_inc_vat=fees_inc_vat,
+                vat_multiplier=vat_multiplier,
             )
 
             # Restore persisted freeze state (only if not expired)
@@ -240,11 +257,12 @@ class Hub:
             if len(time_str) <= 8:  # "HH:MM" or "HH:MM:SS"
                 parts = time_str.split(":")
                 hour, minute = int(parts[0]), int(parts[1])
-                return now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+                deadline = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+                if deadline <= now:
+                    deadline += timedelta(days=1)
+                return deadline
             else:
-                from datetime import datetime as dt
-
-                return dt.fromisoformat(time_str)
+                return datetime.fromisoformat(time_str)
         except (ValueError, IndexError):
             return now + timedelta(hours=8)
 

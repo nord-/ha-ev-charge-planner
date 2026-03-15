@@ -17,7 +17,7 @@ class Vehicle:
     current_soc: float  # 0-100
     target_soc: float  # 0-100
     deadline: datetime
-    grid_fees_ex_vat: float = 0.0
+    fees_inc_vat: float = 0.0
     vat_multiplier: float = 1.25
 
     # Frozen state: when charging is active, ignore parameter changes

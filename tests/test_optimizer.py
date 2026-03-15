@@ -39,7 +39,7 @@ def make_vehicle(
         current_soc=current_soc,
         target_soc=target_soc,
         deadline=deadline or datetime(2024, 1, 1, 7, 0),
-        grid_fees_ex_vat=fees,
+        fees_inc_vat=fees,
     )
 
 
@@ -125,7 +125,7 @@ class TestFindPeriodsSingle:
             duration=1.0,
             deadline=datetime(2024, 1, 1, 23, 5),
             cutoff=datetime(2023, 12, 31, 23, 5),
-            fees_ex_vat=0.0,
+            fees_inc_vat=0.0,
             vat_multiplier=1.25,
             charge_power_kw=11.0,
         )
@@ -149,7 +149,7 @@ class TestFindPeriodsSingle:
             duration=3.0,
             deadline=datetime(2024, 1, 1, 5, 5),
             cutoff=datetime(2023, 12, 31, 23, 5),
-            fees_ex_vat=0.0,
+            fees_inc_vat=0.0,
             vat_multiplier=1.25,
             charge_power_kw=11.0,
         )
@@ -165,14 +165,82 @@ class TestFindPeriodsSingle:
             duration=1.0,
             deadline=datetime(2024, 1, 1, 2, 5),
             cutoff=datetime(2023, 12, 31, 23, 5),
-            fees_ex_vat=0.5,
+            fees_inc_vat=0.5,
             vat_multiplier=1.25,
             charge_power_kw=10.0,
         )
         assert len(periods) == 1
-        # avg_price = (1.0 + 0.5) * 1.25 = 1.875
-        # total_cost = 1.875 * 1.0 * 10.0 = 18.75
-        assert periods[0].total_cost == 18.75
+        # avg_price = 1.0 * 1.25 + 0.5 = 1.75
+        # total_cost = 1.75 * 1.0 * 10.0 = 17.5
+        assert periods[0].total_cost == 17.5
+
+    def test_vat_25_percent_integer(self):
+        """Standard Swedish VAT 25%."""
+        start = datetime(2024, 1, 1, 0, 0)
+        prices = make_prices(start, [2.0])
+        periods = find_periods_single(
+            prices=prices,
+            duration=1.0,
+            deadline=datetime(2024, 1, 1, 2, 5),
+            cutoff=datetime(2023, 12, 31, 23, 5),
+            fees_inc_vat=0.0,
+            vat_multiplier=1.25,
+            charge_power_kw=10.0,
+        )
+        # avg_price = 2.0 * 1.25 + 0.0 = 2.5
+        # total_cost = 2.5 * 1.0 * 10.0 = 25.0
+        assert periods[0].total_cost == 25.0
+
+    def test_vat_12_5_percent_decimal(self):
+        """Reduced VAT 12.5% (decimal)."""
+        start = datetime(2024, 1, 1, 0, 0)
+        prices = make_prices(start, [2.0])
+        periods = find_periods_single(
+            prices=prices,
+            duration=1.0,
+            deadline=datetime(2024, 1, 1, 2, 5),
+            cutoff=datetime(2023, 12, 31, 23, 5),
+            fees_inc_vat=0.0,
+            vat_multiplier=1.125,
+            charge_power_kw=10.0,
+        )
+        # avg_price = 2.0 * 1.125 = 2.25
+        # total_cost = 2.25 * 1.0 * 10.0 = 22.5
+        assert periods[0].total_cost == 22.5
+
+    def test_vat_zero_percent(self):
+        """Zero VAT (e.g. some jurisdictions)."""
+        start = datetime(2024, 1, 1, 0, 0)
+        prices = make_prices(start, [2.0])
+        periods = find_periods_single(
+            prices=prices,
+            duration=1.0,
+            deadline=datetime(2024, 1, 1, 2, 5),
+            cutoff=datetime(2023, 12, 31, 23, 5),
+            fees_inc_vat=0.58,
+            vat_multiplier=1.0,
+            charge_power_kw=10.0,
+        )
+        # avg_price = 2.0 * 1.0 + 0.58 = 2.58
+        # total_cost = 2.58 * 1.0 * 10.0 = 25.8
+        assert periods[0].total_cost == 25.8
+
+    def test_fees_with_vat_combined(self):
+        """Fees inc VAT + spot with VAT — realistic scenario."""
+        start = datetime(2024, 1, 1, 0, 0)
+        prices = make_prices(start, [1.0])
+        periods = find_periods_single(
+            prices=prices,
+            duration=1.0,
+            deadline=datetime(2024, 1, 1, 2, 5),
+            cutoff=datetime(2023, 12, 31, 23, 5),
+            fees_inc_vat=0.58,
+            vat_multiplier=1.25,
+            charge_power_kw=11.0,
+        )
+        # avg_price = 1.0 * 1.25 + 0.58 = 1.83
+        # total_cost = 1.83 * 1.0 * 11.0 = 20.13
+        assert periods[0].total_cost == 20.13
 
     def test_overlap_increases_slots(self):
         start = datetime(2024, 1, 1, 0, 0)
