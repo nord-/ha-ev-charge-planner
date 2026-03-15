@@ -1,0 +1,9 @@
+{
+    "domain": "ev_charge_planner",
+    "name": "EV Charge Planner",
+    "codeowners": ["@nord-"],
+    "config_flow": true,
+    "after_dependencies": ["nordpool"],
+    "iot_class": "calculated",
+    "version": "0.1.0"
+}

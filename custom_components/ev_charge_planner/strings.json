@@ -1,0 +1,42 @@
+{
+    "config": {
+        "step": {
+            "user": {
+                "title": "Add vehicle",
+                "data": {
+                    "name": "Vehicle name",
+                    "soc_sensor": "Current SoC sensor (entity_id)",
+                    "soc_target_entity": "Target SoC sensor (entity_id, optional)",
+                    "soc_target_fixed": "Target SoC (fixed %, if no entity)",
+                    "battery_capacity": "Battery capacity (kWh)",
+                    "charge_power": "Charge power (kW, fixed)",
+                    "charge_power_entity": "Charge power sensor (entity_id, optional)",
+                    "deadline_entity": "Deadline (input_datetime entity_id)",
+                    "price_sensor": "Price sensor (NordPool entity_id)",
+                    "grid_fees_ex_vat": "Grid fees excl. VAT (kr/kWh)"
+                }
+            },
+            "add_vehicle": {
+                "title": "Add another vehicle",
+                "data": {
+                    "name": "Vehicle name",
+                    "soc_sensor": "Current SoC sensor (entity_id)",
+                    "soc_target_entity": "Target SoC sensor (entity_id, optional)",
+                    "soc_target_fixed": "Target SoC (fixed %, if no entity)",
+                    "battery_capacity": "Battery capacity (kWh)",
+                    "charge_power": "Charge power (kW, fixed)",
+                    "charge_power_entity": "Charge power sensor (entity_id, optional)",
+                    "deadline_entity": "Deadline (input_datetime entity_id)",
+                    "price_sensor": "Price sensor (NordPool entity_id)",
+                    "grid_fees_ex_vat": "Grid fees excl. VAT (kr/kWh)"
+                }
+            },
+            "finish": {
+                "title": "Finish setup",
+                "data": {
+                    "add_another": "Add another vehicle?"
+                }
+            }
+        }
+    }
+}

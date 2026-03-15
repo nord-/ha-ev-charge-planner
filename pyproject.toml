@@ -1,0 +1,17 @@
+[project]
+name = "ha-ev-charge-planner"
+version = "0.1.0"
+description = "Home Assistant integration for optimal EV charging schedules based on spot prices"
+requires-python = ">=3.12"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.black]
+line-length = 99
+target-version = ["py312"]
+
+[tool.isort]
+profile = "black"
+line_length = 99
