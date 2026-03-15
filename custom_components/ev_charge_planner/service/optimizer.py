@@ -20,10 +20,13 @@ _LOGGER = logging.getLogger(__name__)
 def derive_entry_hours(prices: list[PriceSlot]) -> float:
     """Derive the duration of each price slot from the first two entries.
 
-    Returns 1.0 (hour) as default when fewer than two prices are available.
+    Returns 1.0 hour by default when fewer than two prices are available
+    or when the derived value is non-positive (e.g. duplicated/unsorted slots).
     """
     if len(prices) > 1:
-        return (prices[1].start - prices[0].start).total_seconds() / 3600
+        delta = (prices[1].start - prices[0].start).total_seconds() / 3600
+        if delta > 0:
+            return delta
     return 1.0
 
 
