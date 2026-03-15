@@ -16,10 +16,8 @@ from custom_components.ev_charge_planner.const import (
 from custom_components.ev_charge_planner.service.hub import Hub
 from custom_components.ev_charge_planner.service.models import (
     ChargePeriod,
-    PriceSlot,
     VehicleResult,
 )
-from custom_components.ev_charge_planner.service.spotprice.dto import SpotPriceDTO
 
 
 def make_vehicle_config(name="Tesla", soc_target=80, battery=60, power=11):
@@ -34,20 +32,11 @@ def make_vehicle_config(name="Tesla", soc_target=80, battery=60, power=11):
     }
 
 
-def make_prices(start, values):
-    return [PriceSlot(start=start + timedelta(hours=i), value=v) for i, v in enumerate(values)]
-
-
 @pytest.mark.asyncio
 async def test_freeze_persists_across_update_cycles():
     """Freeze state must survive _build_vehicles() recreating Vehicle objects."""
     hub = Hub(None, [make_vehicle_config()], test=True)
     hub.dt_model.set_now(datetime(2024, 1, 1, 3, 0))
-
-    # Set up prices and run initial optimization
-    prices = make_prices(datetime(2024, 1, 1, 0, 0), [1.0] * 24)
-    dto = SpotPriceDTO(today=prices, tomorrow=[], tomorrow_valid=False, currency="SEK")
-    await hub.spotprice.async_set_dto(dto)
 
     # Build vehicles and run optimization
     vehicles = hub._build_vehicles(hub.dt_model.now())
@@ -85,10 +74,6 @@ async def test_freeze_persists_across_update_cycles():
 async def test_unfreeze_after_period_ends():
     """Freeze state is cleared when charging period ends."""
     hub = Hub(None, [make_vehicle_config()], test=True)
-
-    prices = make_prices(datetime(2024, 1, 1, 0, 0), [1.0] * 24)
-    dto = SpotPriceDTO(today=prices, tomorrow=[], tomorrow_valid=False, currency="SEK")
-    await hub.spotprice.async_set_dto(dto)
 
     vehicles = hub._build_vehicles(hub.dt_model.now())
 
