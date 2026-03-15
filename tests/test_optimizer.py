@@ -9,6 +9,7 @@ from custom_components.ev_charge_planner.service.models import ChargePeriod, Pri
 from custom_components.ev_charge_planner.service.optimizer import (
     calculate_cutoff,
     calculate_deadline,
+    derive_entry_hours,
     find_periods_single,
     optimize_joint,
 )
@@ -344,3 +345,43 @@ class TestOptimizeJoint:
         assert results["Car2"].best_period is not None
         # Sequential assigns greedily — they should not get identical windows
         assert results["Car1"].best_period.start != results["Car2"].best_period.start
+
+
+class TestDeriveEntryHours:
+    """Tests for derive_entry_hours()."""
+
+    def test_standard_hourly_slots(self):
+        now = datetime(2024, 1, 15, 0, 0)
+        prices = make_prices(now, [1.0, 2.0, 3.0])
+        assert derive_entry_hours(prices) == 1.0
+
+    def test_30_min_slots(self):
+        now = datetime(2024, 1, 15, 0, 0)
+        prices = [PriceSlot(start=now + timedelta(minutes=30 * i), value=1.0) for i in range(4)]
+        assert derive_entry_hours(prices) == 0.5
+
+    def test_15_min_slots(self):
+        now = datetime(2024, 1, 15, 0, 0)
+        prices = [PriceSlot(start=now + timedelta(minutes=15 * i), value=1.0) for i in range(4)]
+        assert derive_entry_hours(prices) == 0.25
+
+    def test_single_price_returns_default(self):
+        now = datetime(2024, 1, 15, 0, 0)
+        prices = [PriceSlot(start=now, value=1.0)]
+        assert derive_entry_hours(prices) == 1.0
+
+    def test_empty_prices_returns_default(self):
+        assert derive_entry_hours([]) == 1.0
+
+    def test_duplicated_starts_returns_default(self):
+        now = datetime(2024, 1, 15, 0, 0)
+        prices = [PriceSlot(start=now, value=1.0), PriceSlot(start=now, value=2.0)]
+        assert derive_entry_hours(prices) == 1.0
+
+    def test_unsorted_prices_returns_default(self):
+        now = datetime(2024, 1, 15, 10, 0)
+        prices = [
+            PriceSlot(start=now, value=1.0),
+            PriceSlot(start=now - timedelta(hours=1), value=2.0),
+        ]
+        assert derive_entry_hours(prices) == 1.0
