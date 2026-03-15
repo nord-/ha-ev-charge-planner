@@ -159,7 +159,7 @@ def _optimize_sequential(
     """Fallback: optimize vehicles one at a time, each considering prior results."""
     assigned_windows: list[tuple[datetime, datetime]] = []
 
-    for idx, vp in enumerate(vehicle_params):
+    for vp in vehicle_params:
         v = vp["vehicle"]
         periods = find_periods_single(
             prices,
