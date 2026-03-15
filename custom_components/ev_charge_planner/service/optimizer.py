@@ -292,7 +292,7 @@ def optimize_joint(
             best_total_cost = total_cost
             best_combo = combo
 
-    # Build results: use the best combo to get each vehicle's full period list
+    # Build results: best_period from best_combo, all_periods for informational list
     if best_combo is not None:
         best_windows = []
         for idx, start_idx in enumerate(best_combo):
@@ -306,6 +306,20 @@ def optimize_joint(
             cutoff = vehicle_params[idx]["cutoff"]
             other_wins = [w for j, w in enumerate(best_windows) if j != idx]
 
+            # best_period is computed directly from the winning combo
+            best_period = _cost_at_start(
+                prices,
+                start_idx,
+                v.duration_hours,
+                deadline,
+                v.grid_fees_ex_vat,
+                v.vat_multiplier,
+                v.charge_power_kw,
+                entry_hours,
+                other_windows=other_wins,
+            )
+
+            # all_periods is an informational list (overlap based on best combo)
             all_periods = find_periods_single(
                 prices,
                 v.duration_hours,
@@ -318,7 +332,7 @@ def optimize_joint(
             )
             results[v.name] = VehicleResult(
                 vehicle_name=v.name,
-                best_period=all_periods[0] if all_periods else None,
+                best_period=best_period,
                 all_periods=all_periods,
                 duration_hours=v.duration_hours,
                 needs_charging=True,
