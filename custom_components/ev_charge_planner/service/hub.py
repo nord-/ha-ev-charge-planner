@@ -161,10 +161,14 @@ class Hub:
                 vat_multiplier=DEFAULT_VAT_MULTIPLIER,
             )
 
-            # Restore persisted freeze state
+            # Restore persisted freeze state (only if not expired)
             if name in self._freeze_state:
-                v.frozen = True
-                v.frozen_duration = self._freeze_state[name][0]
+                _, original_end = self._freeze_state[name]
+                if now < original_end:
+                    v.frozen = True
+                    v.frozen_duration = self._freeze_state[name][0]
+                else:
+                    del self._freeze_state[name]
 
             vehicles.append(v)
         return vehicles
