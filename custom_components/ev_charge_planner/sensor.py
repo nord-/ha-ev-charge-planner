@@ -25,8 +25,7 @@ async def async_setup_entry(
     vehicles = config_entry.data.get(CONF_VEHICLES, [])
 
     entities = [
-        ChargePlannerSensor(hub, vc[CONF_VEHICLE_NAME], config_entry.entry_id)
-        for vc in vehicles
+        ChargePlannerSensor(hub, vc[CONF_VEHICLE_NAME], config_entry.entry_id) for vc in vehicles
     ]
     async_add_entities(entities)
 

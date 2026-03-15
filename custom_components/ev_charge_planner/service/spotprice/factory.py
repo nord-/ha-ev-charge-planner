@@ -14,9 +14,7 @@ class SpotPriceFactory:
     """Creates the correct spot price adapter based on configured entity."""
 
     @staticmethod
-    def create(
-        hass, entity_id: str, test: bool = False
-    ) -> ISpotPrice:
+    def create(hass, entity_id: str, test: bool = False) -> ISpotPrice:
         # For now, only NordPool is supported.
         # Entity ID detection could be extended for EnergiDataService etc.
         return NordPoolAdapter(hass, entity_id, test)
