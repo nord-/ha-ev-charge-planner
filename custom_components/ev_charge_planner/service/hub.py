@@ -27,7 +27,7 @@ from ..const import (
     SPOTPRICE_THROTTLE_SECONDS,
 )
 from .dt_model import DTModel
-from .models import VehicleResult
+from .models import PriceSlot, VehicleResult
 from .optimizer import optimize_joint
 from .spotprice.nordpool import NordPoolAdapter
 from .state_reader import HassStateReader, StateReader
@@ -60,7 +60,7 @@ class Hub:
         # {vehicle_name: (frozen_duration, original_period_end)}
         self._freeze_state: dict[str, tuple[float, datetime]] = {}
 
-        self._prices: list = []
+        self._prices: list[PriceSlot] = []
 
         # Determine price sensor (all vehicles share the same one)
         price_entity = vehicle_configs[0].get(CONF_PRICE_SENSOR) if vehicle_configs else None
