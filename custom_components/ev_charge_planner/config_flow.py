@@ -7,7 +7,6 @@ from typing import Any
 
 import voluptuous as vol
 from homeassistant import config_entries
-from homeassistant.core import callback
 
 from .const import (
     CONF_BATTERY_CAPACITY,

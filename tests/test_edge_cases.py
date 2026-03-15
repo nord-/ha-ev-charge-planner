@@ -27,7 +27,7 @@ class TestEdgeCases:
     def test_all_prices_outside_window(self):
         """No candidate starts within cutoff-deadline range."""
         prices = make_prices(datetime(2024, 1, 1, 0, 0), [1.0] * 24)
-        # Cutoff after all prices, deadline before all prices
+        # Cutoff (23:05) is after deadline (01:05), so no valid start exists
         periods = find_periods_single(
             prices, 2.0,
             deadline=datetime(2024, 1, 1, 1, 5),
