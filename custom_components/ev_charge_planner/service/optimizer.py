@@ -30,6 +30,11 @@ def derive_entry_hours(prices: list[PriceSlot]) -> float:
         delta = (prices[1].start - prices[0].start).total_seconds() / 3600
         if delta > 0:
             return delta
+        _LOGGER.warning(
+            "Non-positive slot delta (%.2f h) — prices may be unsorted/duplicated. "
+            "Falling back to 1.0 h.",
+            delta,
+        )
     return 1.0
 
 
