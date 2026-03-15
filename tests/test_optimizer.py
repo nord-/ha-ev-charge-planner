@@ -253,6 +253,42 @@ class TestOptimizeJoint:
         starts = {r1.best_period.start.hour, r2.best_period.start.hour}
         assert starts == {2, 10}
 
+    def test_best_period_matches_combo_not_all_periods(self):
+        """best_period must come from the winning combo, not all_periods[0].
+
+        Scenario: two vehicles, overlap changes the cost ranking so that
+        all_periods[0] (cheapest ignoring the specific combo) differs from
+        the combo-derived best_period.
+        """
+        now = datetime(2024, 1, 1, 0, 0)
+        # Hour 2-3 cheap, hour 10-11 cheap, rest expensive
+        values = [10.0] * 24
+        values[2] = 0.1
+        values[3] = 0.1
+        values[10] = 0.15
+        values[11] = 0.15
+        prices = make_prices(datetime(2024, 1, 1, 0, 0), values)
+
+        # Each needs 2h
+        v1 = make_vehicle("Car1", 0, 100, battery_kwh=22, charge_power_kw=11,
+                          deadline=datetime(2024, 1, 2, 7, 0))
+        v2 = make_vehicle("Car2", 0, 100, battery_kwh=22, charge_power_kw=11,
+                          deadline=datetime(2024, 1, 2, 7, 0))
+
+        results = optimize_joint([v1, v2], prices, now)
+
+        r1 = results["Car1"]
+        r2 = results["Car2"]
+        # The combo should split: one at hour 2, one at hour 10
+        starts = {r1.best_period.start.hour, r2.best_period.start.hour}
+        assert starts == {2, 10}
+
+        # Verify best_period is the combo-derived one, not necessarily all_periods[0]
+        # The car assigned to hour 10 should have best_period at hour 10
+        # even if all_periods[0] (without overlap context of the other car) might differ
+        for r in [r1, r2]:
+            assert r.best_period.start in [p.start for p in r.all_periods]
+
     def test_empty_prices(self):
         now = datetime(2024, 1, 1, 12, 0)
         v = make_vehicle("Tesla", 50, 80)
