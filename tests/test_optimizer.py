@@ -14,15 +14,12 @@ from custom_components.ev_charge_planner.service.optimizer import (
 )
 from custom_components.ev_charge_planner.service.vehicle import Vehicle
 
-
 # --- Helpers ---
+
 
 def make_prices(start: datetime, values: list[float]) -> list[PriceSlot]:
     """Create hourly price slots from a list of values."""
-    return [
-        PriceSlot(start=start + timedelta(hours=i), value=v)
-        for i, v in enumerate(values)
-    ]
+    return [PriceSlot(start=start + timedelta(hours=i), value=v) for i, v in enumerate(values)]
 
 
 def make_vehicle(
@@ -46,6 +43,7 @@ def make_vehicle(
 
 
 # --- Duration calculation ---
+
 
 class TestVehicleDuration:
     def test_basic_duration(self):
@@ -90,6 +88,7 @@ class TestVehicleDuration:
 
 # --- Cutoff and deadline ---
 
+
 class TestTimeHelpers:
     def test_cutoff(self):
         now = datetime(2024, 1, 1, 15, 30)
@@ -110,6 +109,7 @@ class TestTimeHelpers:
 
 
 # --- Single vehicle optimization ---
+
 
 class TestFindPeriodsSingle:
     def test_finds_cheapest_hour(self):
@@ -179,15 +179,25 @@ class TestFindPeriodsSingle:
 
         # Without overlap: 2 hour charging -> 2 slots
         periods_alone = find_periods_single(
-            prices, 2.0, datetime(2024, 1, 1, 10, 5),
-            datetime(2023, 12, 31, 23, 5), 0.0, 1.25, 11.0,
+            prices,
+            2.0,
+            datetime(2024, 1, 1, 10, 5),
+            datetime(2023, 12, 31, 23, 5),
+            0.0,
+            1.25,
+            11.0,
         )
 
         # With overlap in hours 0-4: effective rate halved -> needs 4 slots
         other_window = (datetime(2024, 1, 1, 0, 0), datetime(2024, 1, 1, 4, 0))
         periods_overlap = find_periods_single(
-            prices, 2.0, datetime(2024, 1, 1, 10, 5),
-            datetime(2023, 12, 31, 23, 5), 0.0, 1.25, 11.0,
+            prices,
+            2.0,
+            datetime(2024, 1, 1, 10, 5),
+            datetime(2023, 12, 31, 23, 5),
+            0.0,
+            1.25,
+            11.0,
             other_windows=[other_window],
         )
 
@@ -199,6 +209,7 @@ class TestFindPeriodsSingle:
 
 
 # --- Joint optimization ---
+
 
 class TestOptimizeJoint:
     def test_single_vehicle(self):
@@ -238,10 +249,12 @@ class TestOptimizeJoint:
         prices = make_prices(datetime(2024, 1, 1, 0, 0), values)
 
         # Each needs exactly 2h: (100-0)/100 * 22 / 11 = 2.0
-        v1 = make_vehicle("Car1", 0, 100, battery_kwh=22, charge_power_kw=11,
-                          deadline=datetime(2024, 1, 2, 7, 0))
-        v2 = make_vehicle("Car2", 0, 100, battery_kwh=22, charge_power_kw=11,
-                          deadline=datetime(2024, 1, 2, 7, 0))
+        v1 = make_vehicle(
+            "Car1", 0, 100, battery_kwh=22, charge_power_kw=11, deadline=datetime(2024, 1, 2, 7, 0)
+        )
+        v2 = make_vehicle(
+            "Car2", 0, 100, battery_kwh=22, charge_power_kw=11, deadline=datetime(2024, 1, 2, 7, 0)
+        )
 
         results = optimize_joint([v1, v2], prices, now)
 

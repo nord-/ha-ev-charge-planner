@@ -219,8 +219,13 @@ def optimize_joint(
         cutoff = calculate_cutoff(now, entry_hours)
         deadline = calculate_deadline(now, v.deadline)
         periods = find_periods_single(
-            prices, v.duration_hours, deadline, cutoff,
-            v.grid_fees_ex_vat, v.vat_multiplier, v.charge_power_kw,
+            prices,
+            v.duration_hours,
+            deadline,
+            cutoff,
+            v.grid_fees_ex_vat,
+            v.vat_multiplier,
+            v.charge_power_kw,
         )
         results[v.name] = VehicleResult(
             vehicle_name=v.name,
@@ -239,16 +244,15 @@ def optimize_joint(
     for v in active:
         cutoff = calculate_cutoff(now, entry_hours)
         deadline = calculate_deadline(now, v.deadline)
-        indices = [
-            i for i, p in enumerate(prices)
-            if p.start >= cutoff and p.start < deadline
-        ]
+        indices = [i for i, p in enumerate(prices) if p.start >= cutoff and p.start < deadline]
         candidates_per_vehicle.append(indices)
-        vehicle_params.append({
-            "vehicle": v,
-            "deadline": deadline,
-            "cutoff": cutoff,
-        })
+        vehicle_params.append(
+            {
+                "vehicle": v,
+                "deadline": deadline,
+                "cutoff": cutoff,
+            }
+        )
 
     best_total_cost = float("inf")
     best_combo: tuple[int, ...] | None = None
@@ -273,9 +277,15 @@ def optimize_joint(
             other_wins = [w for j, w in enumerate(base_windows) if j != idx]
 
             period = _cost_at_start(
-                prices, start_idx, v.duration_hours, deadline,
-                v.grid_fees_ex_vat, v.vat_multiplier, v.charge_power_kw,
-                entry_hours, other_windows=other_wins,
+                prices,
+                start_idx,
+                v.duration_hours,
+                deadline,
+                v.grid_fees_ex_vat,
+                v.vat_multiplier,
+                v.charge_power_kw,
+                entry_hours,
+                other_windows=other_wins,
             )
             if period is None:
                 valid = False
@@ -293,9 +303,7 @@ def optimize_joint(
         for idx, start_idx in enumerate(best_combo):
             v = vehicle_params[idx]["vehicle"]
             start = prices[start_idx].start
-            best_windows.append(
-                _vehicle_window(start, v.duration_hours, entry_hours)
-            )
+            best_windows.append(_vehicle_window(start, v.duration_hours, entry_hours))
 
         for idx, start_idx in enumerate(best_combo):
             v = vehicle_params[idx]["vehicle"]
@@ -304,8 +312,13 @@ def optimize_joint(
             other_wins = [w for j, w in enumerate(best_windows) if j != idx]
 
             all_periods = find_periods_single(
-                prices, v.duration_hours, deadline, cutoff,
-                v.grid_fees_ex_vat, v.vat_multiplier, v.charge_power_kw,
+                prices,
+                v.duration_hours,
+                deadline,
+                cutoff,
+                v.grid_fees_ex_vat,
+                v.vat_multiplier,
+                v.charge_power_kw,
                 other_windows=other_wins,
             )
             results[v.name] = VehicleResult(
