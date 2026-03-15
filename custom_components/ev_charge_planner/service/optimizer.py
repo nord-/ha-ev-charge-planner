@@ -73,9 +73,15 @@ def find_periods_single(
             continue
 
         period = _cost_at_start(
-            prices, i, duration, deadline,
-            fees_ex_vat, vat_multiplier, charge_power_kw,
-            entry_hours, other_windows=other_windows,
+            prices,
+            i,
+            duration,
+            deadline,
+            fees_ex_vat,
+            vat_multiplier,
+            charge_power_kw,
+            entry_hours,
+            other_windows=other_windows,
         )
         if period is not None:
             periods.append(period)
@@ -156,8 +162,13 @@ def _optimize_sequential(
     for idx, vp in enumerate(vehicle_params):
         v = vp["vehicle"]
         periods = find_periods_single(
-            prices, v.duration_hours, vp["deadline"], vp["cutoff"],
-            v.grid_fees_ex_vat, v.vat_multiplier, v.charge_power_kw,
+            prices,
+            v.duration_hours,
+            vp["deadline"],
+            vp["cutoff"],
+            v.grid_fees_ex_vat,
+            v.vat_multiplier,
+            v.charge_power_kw,
             other_windows=assigned_windows if assigned_windows else None,
         )
         best = periods[0] if periods else None
@@ -169,9 +180,7 @@ def _optimize_sequential(
             needs_charging=True,
         )
         if best:
-            assigned_windows.append(
-                _vehicle_window(best.start, v.duration_hours, entry_hours)
-            )
+            assigned_windows.append(_vehicle_window(best.start, v.duration_hours, entry_hours))
 
     return results
 
@@ -253,12 +262,15 @@ def optimize_joint(
 
     # Safeguard: fall back to sequential optimization if combinatorial
     # explosion would be too expensive (>100k combinations)
-    total_combos = math.prod(len(c) for c in candidates_per_vehicle) if candidates_per_vehicle else 0
+    total_combos = (
+        math.prod(len(c) for c in candidates_per_vehicle) if candidates_per_vehicle else 0
+    )
     if total_combos > _MAX_JOINT_COMBINATIONS:
         _LOGGER.warning(
             "Joint optimization skipped: %d combinations exceeds limit %d. "
             "Falling back to sequential optimization.",
-            total_combos, _MAX_JOINT_COMBINATIONS,
+            total_combos,
+            _MAX_JOINT_COMBINATIONS,
         )
         return _optimize_sequential(prices, entry_hours, vehicle_params, results)
 

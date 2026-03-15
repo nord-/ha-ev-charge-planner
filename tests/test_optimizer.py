@@ -287,10 +287,12 @@ class TestOptimizeJoint:
         values[11] = 0.1
         prices = make_prices(datetime(2024, 1, 1, 0, 0), values)
 
-        v1 = make_vehicle("Car1", 0, 100, battery_kwh=22, charge_power_kw=11,
-                          deadline=datetime(2024, 1, 2, 7, 0))
-        v2 = make_vehicle("Car2", 0, 100, battery_kwh=22, charge_power_kw=11,
-                          deadline=datetime(2024, 1, 2, 7, 0))
+        v1 = make_vehicle(
+            "Car1", 0, 100, battery_kwh=22, charge_power_kw=11, deadline=datetime(2024, 1, 2, 7, 0)
+        )
+        v2 = make_vehicle(
+            "Car2", 0, 100, battery_kwh=22, charge_power_kw=11, deadline=datetime(2024, 1, 2, 7, 0)
+        )
 
         results = optimize_joint([v1, v2], prices, now)
 
