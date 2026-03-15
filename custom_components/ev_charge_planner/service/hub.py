@@ -30,6 +30,7 @@ from .dt_model import DTModel
 from .models import VehicleResult
 from .optimizer import optimize_joint
 from .spotprice.nordpool import NordPoolAdapter
+from .state_reader import HassStateReader, StateReader
 from .vehicle import Vehicle
 
 _LOGGER = logging.getLogger(__name__)
@@ -39,11 +40,16 @@ class Hub:
     """Manages vehicles, listens to state changes, runs optimization."""
 
     def __init__(
-        self, hass: HomeAssistant | None, vehicle_configs: list[dict], test: bool = False
+        self,
+        hass: HomeAssistant | None,
+        vehicle_configs: list[dict],
+        test: bool = False,
+        state_reader: StateReader | None = None,
     ):
         self._hass = hass
         self._vehicle_configs = vehicle_configs
         self._test = test
+        self._state_reader = state_reader or (HassStateReader(hass) if hass else None)
         self.dt_model = DTModel()
         self._results: dict[str, VehicleResult] = {}
         self._last_update: float = 0
@@ -202,26 +208,25 @@ class Hub:
                     _LOGGER.info("Vehicle %s charging started, freezing", v.name)
 
     def _get_state_float(self, entity_id: str | None, default: float) -> float:
-        if not entity_id or not self._hass:
+        if not entity_id or not self._state_reader:
             return default
-        state = self._hass.states.get(entity_id)
-        if state is None or state.state in ("unavailable", "unknown"):
+        value = self._state_reader.get_state(entity_id)
+        if value is None:
             return default
         try:
-            return float(state.state)
+            return float(value)
         except (ValueError, TypeError):
             return default
 
     def _get_deadline(self, entity_id: str | None, now: datetime) -> datetime:
         """Parse deadline from input_datetime entity."""
-        if not entity_id or not self._hass:
+        if not entity_id or not self._state_reader:
             return now + timedelta(hours=8)  # fallback
-        state = self._hass.states.get(entity_id)
-        if state is None or state.state in ("unavailable", "unknown"):
+        time_str = self._state_reader.get_state(entity_id)
+        if time_str is None:
             return now + timedelta(hours=8)
         # input_datetime state is "HH:MM:SS" or "YYYY-MM-DD HH:MM:SS"
         try:
-            time_str = state.state
             if len(time_str) <= 8:  # "HH:MM" or "HH:MM:SS"
                 parts = time_str.split(":")
                 hour, minute = int(parts[0]), int(parts[1])
