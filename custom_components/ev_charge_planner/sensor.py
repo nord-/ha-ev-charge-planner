@@ -33,7 +33,7 @@ class ChargePlannerSensor(SensorEntity):
     """Sensor showing optimal charge start time for a vehicle."""
 
     _attr_device_class = SensorDeviceClass.TIMESTAMP
-    _attr_should_poll = True
+    _attr_should_poll = False
 
     def __init__(self, hub, vehicle_name: str, entry_id: str) -> None:
         self._hub = hub
@@ -42,9 +42,21 @@ class ChargePlannerSensor(SensorEntity):
         self._attr_unique_id = f"ev_charge_planner_{entry_id}_{vehicle_name}"
         self._periods_list: str = ""
 
-    async def async_update(self) -> None:
-        """Poll hub for latest results."""
+    async def async_added_to_hass(self) -> None:
+        """Register callback with hub when entity is added."""
+        self._hub.register_update_callback(self._on_hub_update)
+        # Trigger initial data load
         await self._hub.async_update()
+        self._update_from_hub()
+
+    @callback
+    def _on_hub_update(self) -> None:
+        """Handle hub update notification."""
+        self._update_from_hub()
+        self.async_write_ha_state()
+
+    def _update_from_hub(self) -> None:
+        """Read latest results from hub."""
         result = self._hub.get_result(self._vehicle_name)
 
         if result is None or not result.needs_charging or result.best_period is None:
