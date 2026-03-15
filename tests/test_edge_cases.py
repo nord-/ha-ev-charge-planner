@@ -1,6 +1,6 @@
 """Edge case tests for optimizer and vehicle."""
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from custom_components.ev_charge_planner.service.models import PriceSlot
 from custom_components.ev_charge_planner.service.optimizer import (
@@ -105,6 +105,25 @@ class TestEdgeCases:
         assert results["NeedsCharge"].best_period is not None
         assert not results["Full"].needs_charging
         assert results["Full"].best_period is None
+
+    def test_aware_prices_with_dtmodel_now(self):
+        """NordPool prices are tz-aware; DTModel.now() must also be aware."""
+        from custom_components.ev_charge_planner.service.dt_model import DTModel
+
+        dt = DTModel()
+        now = dt.now()
+        assert now.tzinfo is not None, "DTModel.now() must return tz-aware datetime"
+
+        aware_now = datetime(2024, 1, 1, 0, 0, tzinfo=UTC)
+        prices = make_prices(aware_now, [1.0] * 24)
+        v = make_vehicle(
+            "test",
+            50,
+            80,
+            deadline=datetime(2024, 1, 2, 7, 0, tzinfo=UTC),
+        )
+        results = optimize_joint([v], prices, aware_now)
+        assert results["test"].best_period is not None
 
     def test_very_small_duration(self):
         """Quarter-hour minimum charging."""

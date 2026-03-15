@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 
 
 @dataclass
@@ -15,7 +15,7 @@ class DTModel:
     def now(self) -> datetime:
         if self.mock_dt is not None:
             return self.mock_dt
-        return datetime.now()
+        return datetime.now(tz=UTC)
 
     def set_now(self, dt: datetime) -> None:
         self.mock_dt = dt
