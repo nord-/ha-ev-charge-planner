@@ -17,6 +17,16 @@ from .vehicle import Vehicle
 _LOGGER = logging.getLogger(__name__)
 
 
+def derive_entry_hours(prices: list[PriceSlot]) -> float:
+    """Derive the duration of each price slot from the first two entries.
+
+    Returns 1.0 (hour) as default when fewer than two prices are available.
+    """
+    if len(prices) > 1:
+        return (prices[1].start - prices[0].start).total_seconds() / 3600
+    return 1.0
+
+
 def calculate_cutoff(now: datetime, entry_hours: float) -> datetime:
     """Cutoff = now - entry_hours + 5min (allow current hour as valid start)."""
     return now - timedelta(hours=entry_hours) + timedelta(minutes=5)
@@ -58,10 +68,7 @@ def find_periods_single(
     if duration <= 0 or not prices:
         return []
 
-    if len(prices) > 1:
-        entry_hours = (prices[1].start - prices[0].start).total_seconds() / 3600
-    else:
-        entry_hours = 1.0
+    entry_hours = derive_entry_hours(prices)
 
     periods: list[ChargePeriod] = []
 
@@ -188,9 +195,7 @@ def optimize_joint(
     if not prices:
         return {v.name: VehicleResult(v.name, None) for v in vehicles}
 
-    entry_hours = 1.0
-    if len(prices) > 1:
-        entry_hours = (prices[1].start - prices[0].start).total_seconds() / 3600
+    entry_hours = derive_entry_hours(prices)
 
     # Separate vehicles that need charging from those that don't
     active = [v for v in vehicles if v.needs_charging]
