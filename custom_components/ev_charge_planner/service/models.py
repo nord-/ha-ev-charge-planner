@@ -26,9 +26,7 @@ class ChargePeriod:
     hours_used: int  # number of price slots consumed
 
     def __repr__(self) -> str:
-        return (
-            f"ChargePeriod({self.start:%H:%M}–{self.end:%H:%M}, " f"cost={self.total_cost:.0f} kr)"
-        )
+        return f"ChargePeriod({self.start:%H:%M}–{self.end:%H:%M}, cost={self.total_cost:.0f} kr)"
 
 
 @dataclass

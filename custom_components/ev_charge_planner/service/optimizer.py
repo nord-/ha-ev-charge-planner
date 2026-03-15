@@ -9,12 +9,15 @@ from __future__ import annotations
 
 import itertools
 import logging
+import math
 from datetime import datetime, timedelta
 
 from .models import ChargePeriod, PriceSlot, VehicleResult
 from .vehicle import Vehicle
 
 _LOGGER = logging.getLogger(__name__)
+
+_MAX_JOINT_COMBINATIONS = 100_000
 
 
 def derive_entry_hours(prices: list[PriceSlot]) -> float:
@@ -79,44 +82,19 @@ def find_periods_single(
         if p.start < cutoff or p.start >= deadline:
             continue
 
-        eff_hours = 0.0
-        price_sum = 0.0
-        slots_used = 0
-        end = None
-
-        for j in range(i, len(prices)):
-            if end is not None:
-                break
-            q = prices[j]
-
-            # Check overlap with other vehicles' windows
-            overlap_factor = 1.0
-            if other_windows:
-                for win_start, win_end in other_windows:
-                    if q.start >= win_start and q.start < win_end:
-                        overlap_factor = 0.5
-                        break
-
-            eff_hours += entry_hours * overlap_factor
-            price_sum += (q.value + fees_ex_vat) * vat_multiplier
-            slots_used += 1
-
-            if eff_hours >= duration:
-                end = q.start + timedelta(hours=entry_hours)
-
-        if end is not None and end <= deadline:
-            avg_price = price_sum / slots_used
-            total_cost = avg_price * duration * charge_power_kw
-            periods.append(
-                ChargePeriod(
-                    start=p.start,
-                    end=end,
-                    avg_price=round(avg_price, 4),
-                    total_cost=round(total_cost, 2),
-                    duration_hours=duration,
-                    hours_used=slots_used,
-                )
-            )
+        period = _cost_at_start(
+            prices,
+            i,
+            duration,
+            deadline,
+            fees_ex_vat,
+            vat_multiplier,
+            charge_power_kw,
+            entry_hours,
+            other_windows=other_windows,
+        )
+        if period is not None:
+            periods.append(period)
 
     periods.sort(key=lambda p: (p.total_cost, p.start))
     return periods
@@ -126,8 +104,6 @@ def _vehicle_window(
     start: datetime, duration: float, entry_hours: float
 ) -> tuple[datetime, datetime]:
     """Calculate the time window a vehicle occupies when starting at `start`."""
-    import math
-
     slots = math.ceil(duration / entry_hours)
     end = start + timedelta(hours=slots * entry_hours)
     return (start, end)
@@ -182,6 +158,41 @@ def _cost_at_start(
         duration_hours=duration,
         hours_used=slots_used,
     )
+
+
+def _optimize_sequential(
+    prices: list[PriceSlot],
+    entry_hours: float,
+    vehicle_params: list[dict],
+    results: dict[str, VehicleResult],
+) -> dict[str, VehicleResult]:
+    """Fallback: optimize vehicles one at a time, each considering prior results."""
+    assigned_windows: list[tuple[datetime, datetime]] = []
+
+    for vp in vehicle_params:
+        v = vp["vehicle"]
+        periods = find_periods_single(
+            prices,
+            v.duration_hours,
+            vp["deadline"],
+            vp["cutoff"],
+            v.grid_fees_ex_vat,
+            v.vat_multiplier,
+            v.charge_power_kw,
+            other_windows=assigned_windows if assigned_windows else None,
+        )
+        best = periods[0] if periods else None
+        results[v.name] = VehicleResult(
+            vehicle_name=v.name,
+            best_period=best,
+            all_periods=periods,
+            duration_hours=v.duration_hours,
+            needs_charging=True,
+        )
+        if best:
+            assigned_windows.append(_vehicle_window(best.start, v.duration_hours, entry_hours))
+
+    return results
 
 
 def optimize_joint(
@@ -257,6 +268,20 @@ def optimize_joint(
             }
         )
 
+    # Safeguard: fall back to sequential optimization if combinatorial
+    # explosion would be too expensive (>100k combinations)
+    total_combos = (
+        math.prod(len(c) for c in candidates_per_vehicle) if candidates_per_vehicle else 0
+    )
+    if total_combos > _MAX_JOINT_COMBINATIONS:
+        _LOGGER.warning(
+            "Joint optimization skipped: %d combinations exceeds limit %d. "
+            "Falling back to sequential optimization.",
+            total_combos,
+            _MAX_JOINT_COMBINATIONS,
+        )
+        return _optimize_sequential(prices, entry_hours, vehicle_params, results)
+
     best_total_cost = float("inf")
     best_combo: tuple[int, ...] | None = None
 
@@ -300,7 +325,7 @@ def optimize_joint(
             best_total_cost = total_cost
             best_combo = combo
 
-    # Build results: use the best combo to get each vehicle's full period list
+    # Build results: best_period from best_combo, all_periods for informational list
     if best_combo is not None:
         best_windows = []
         for idx, start_idx in enumerate(best_combo):
@@ -314,6 +339,20 @@ def optimize_joint(
             cutoff = vehicle_params[idx]["cutoff"]
             other_wins = [w for j, w in enumerate(best_windows) if j != idx]
 
+            # best_period is computed directly from the winning combo
+            best_period = _cost_at_start(
+                prices,
+                start_idx,
+                v.duration_hours,
+                deadline,
+                v.grid_fees_ex_vat,
+                v.vat_multiplier,
+                v.charge_power_kw,
+                entry_hours,
+                other_windows=other_wins,
+            )
+
+            # all_periods is an informational list (overlap based on best combo)
             all_periods = find_periods_single(
                 prices,
                 v.duration_hours,
@@ -326,7 +365,7 @@ def optimize_joint(
             )
             results[v.name] = VehicleResult(
                 vehicle_name=v.name,
-                best_period=all_periods[0] if all_periods else None,
+                best_period=best_period,
                 all_periods=all_periods,
                 duration_hours=v.duration_hours,
                 needs_charging=True,
