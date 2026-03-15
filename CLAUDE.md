@@ -29,8 +29,9 @@ The integration follows a layered design: **HA integration layer** → **Hub coo
 
 ### Core algorithm (`service/optimizer.py`)
 
+- `derive_entry_hours()` — derives slot duration from first two price entries (defaults to 1.0h)
 - `find_periods_single()` — evaluates all possible charging windows for one vehicle, considering overlap with other vehicles' windows (effective rate × 0.5 on shared charger)
-- `optimize_joint()` — enumerates all combinations of start times across vehicles (O(n^k), fine for 2–3 vehicles × ~48 hours) to find the global minimum cost
+- `optimize_joint()` — enumerates all combinations of start times across vehicles to find the global minimum cost. Falls back to sequential optimization when combination count exceeds 100k threshold.
 - `_cost_at_start()` — computes cost for a specific start slot, used by joint optimization to evaluate each combination
 
 **Duration formula:** `ceil((target_soc - current_soc) / 100 × battery_kWh / charge_power_kW × 4) / 4`
@@ -39,15 +40,19 @@ The integration follows a layered design: **HA integration layer** → **Hub coo
 
 ### Hub (`service/hub.py`)
 
-Central coordinator per config entry. Listens to state changes on price sensor + all vehicle entities (SoC, target, deadline, power). Throttles updates to 60s. Manages **freeze state**: once a vehicle's charging period has started, its parameters are locked until the period ends — changes to SoC/target/deadline during active charging are ignored.
+Central coordinator per config entry. Listens to state changes on price sensor + all vehicle entities (SoC, target, deadline, power). Throttles updates to 60s. Uses injectable `StateReader` protocol for HA state access. Manages **freeze state** via `_freeze_state` dict storing `(frozen_duration, original_period_end)` tuples — once a vehicle's charging period has started, its parameters are locked until the period ends. Expired freeze entries are pruned in `_build_vehicles()`.
 
 ### Spot price layer (`service/spotprice/`)
 
-Adapter pattern: `SpotPriceFactory` → `NordPoolAdapter`. Parses `raw_today`/`raw_tomorrow` attributes (list of `{start, end, value}` dicts) into `PriceSlot` objects. Extensible for EnergiDataService etc.
+`ISpotPrice` protocol (pure fetcher — returns prices, caller stores them) → `NordPoolAdapter` implementation. Parses `raw_today`/`raw_tomorrow` attributes (list of `{start, end, value}` dicts) into `PriceSlot` objects. Hub calls `async_fetch()` and owns the price list.
+
+### State reader (`service/state_reader.py`)
+
+`StateReader` protocol decouples Hub from `hass.states.get()`. Default `HassStateReader` wraps HA state lookups. Enables testing with mock state readers.
 
 ### HA layer
 
-- `sensor.py` — thin `ChargePlannerSensor` entity, `device_class: timestamp`, polls Hub
+- `sensor.py` — `ChargePlannerSensor` entity, `device_class: timestamp`, event-driven via Hub callback + initial poll
 - `config_flow.py` — multi-step: add vehicle → add another? → finish
 - `__init__.py` — creates Hub, forwards to sensor platform
 
