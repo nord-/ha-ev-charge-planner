@@ -16,8 +16,10 @@ def make_prices(start, values):
 
 def make_vehicle(name, current_soc, target_soc, **kwargs):
     defaults = dict(
-        battery_capacity_kwh=60, charge_power_kw=11,
-        deadline=datetime(2024, 1, 1, 7, 0), grid_fees_ex_vat=0.0,
+        battery_capacity_kwh=60,
+        charge_power_kw=11,
+        deadline=datetime(2024, 1, 1, 7, 0),
+        grid_fees_ex_vat=0.0,
     )
     defaults.update(kwargs)
     return Vehicle(name=name, current_soc=current_soc, target_soc=target_soc, **defaults)
@@ -29,10 +31,13 @@ class TestEdgeCases:
         prices = make_prices(datetime(2024, 1, 1, 0, 0), [1.0] * 24)
         # Cutoff (23:05) is after deadline (01:05), so no valid start exists
         periods = find_periods_single(
-            prices, 2.0,
+            prices,
+            2.0,
             deadline=datetime(2024, 1, 1, 1, 5),
             cutoff=datetime(2024, 1, 1, 23, 5),
-            fees_ex_vat=0.0, vat_multiplier=1.25, charge_power_kw=11.0,
+            fees_ex_vat=0.0,
+            vat_multiplier=1.25,
+            charge_power_kw=11.0,
         )
         assert periods == []
 
@@ -40,10 +45,13 @@ class TestEdgeCases:
         """Need more hours than available before deadline."""
         prices = make_prices(datetime(2024, 1, 1, 0, 0), [1.0] * 5)
         periods = find_periods_single(
-            prices, 10.0,  # need 10h but only 5 available
+            prices,
+            10.0,  # need 10h but only 5 available
             deadline=datetime(2024, 1, 1, 5, 5),
             cutoff=datetime(2023, 12, 31, 23, 5),
-            fees_ex_vat=0.0, vat_multiplier=1.25, charge_power_kw=11.0,
+            fees_ex_vat=0.0,
+            vat_multiplier=1.25,
+            charge_power_kw=11.0,
         )
         assert periods == []
 
@@ -56,10 +64,13 @@ class TestEdgeCases:
         """Negative spot prices should work (producer pays consumer)."""
         prices = make_prices(datetime(2024, 1, 1, 0, 0), [-0.5, -0.3, 0.1, 0.5])
         periods = find_periods_single(
-            prices, 1.0,
+            prices,
+            1.0,
             deadline=datetime(2024, 1, 1, 5, 5),
             cutoff=datetime(2023, 12, 31, 23, 5),
-            fees_ex_vat=0.0, vat_multiplier=1.25, charge_power_kw=11.0,
+            fees_ex_vat=0.0,
+            vat_multiplier=1.25,
+            charge_power_kw=11.0,
         )
         assert len(periods) > 0
         # Cheapest should be the most negative price
@@ -70,10 +81,13 @@ class TestEdgeCases:
         """Only one hour of pricing available."""
         prices = make_prices(datetime(2024, 1, 1, 3, 0), [1.0])
         periods = find_periods_single(
-            prices, 1.0,
+            prices,
+            1.0,
             deadline=datetime(2024, 1, 1, 5, 5),
             cutoff=datetime(2024, 1, 1, 2, 5),
-            fees_ex_vat=0.0, vat_multiplier=1.25, charge_power_kw=11.0,
+            fees_ex_vat=0.0,
+            vat_multiplier=1.25,
+            charge_power_kw=11.0,
         )
         assert len(periods) == 1
 

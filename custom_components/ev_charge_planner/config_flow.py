@@ -93,8 +93,5 @@ class EVChargePlannerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         return self.async_show_form(
             step_id="finish",
-            data_schema=vol.Schema(
-                {vol.Optional("add_another", default=False): bool}
-            ),
+            data_schema=vol.Schema({vol.Optional("add_another", default=False): bool}),
         )
-
