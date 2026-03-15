@@ -19,7 +19,7 @@ def make_vehicle(name, current_soc, target_soc, **kwargs):
         battery_capacity_kwh=60,
         charge_power_kw=11,
         deadline=datetime(2024, 1, 1, 7, 0),
-        grid_fees_ex_vat=0.0,
+        fees_inc_vat=0.0,
     )
     defaults.update(kwargs)
     return Vehicle(name=name, current_soc=current_soc, target_soc=target_soc, **defaults)
@@ -35,7 +35,7 @@ class TestEdgeCases:
             2.0,
             deadline=datetime(2024, 1, 1, 1, 5),
             cutoff=datetime(2024, 1, 1, 23, 5),
-            fees_ex_vat=0.0,
+            fees_inc_vat=0.0,
             vat_multiplier=1.25,
             charge_power_kw=11.0,
         )
@@ -49,7 +49,7 @@ class TestEdgeCases:
             10.0,  # need 10h but only 5 available
             deadline=datetime(2024, 1, 1, 5, 5),
             cutoff=datetime(2023, 12, 31, 23, 5),
-            fees_ex_vat=0.0,
+            fees_inc_vat=0.0,
             vat_multiplier=1.25,
             charge_power_kw=11.0,
         )
@@ -68,7 +68,7 @@ class TestEdgeCases:
             1.0,
             deadline=datetime(2024, 1, 1, 5, 5),
             cutoff=datetime(2023, 12, 31, 23, 5),
-            fees_ex_vat=0.0,
+            fees_inc_vat=0.0,
             vat_multiplier=1.25,
             charge_power_kw=11.0,
         )
@@ -85,7 +85,7 @@ class TestEdgeCases:
             1.0,
             deadline=datetime(2024, 1, 1, 5, 5),
             cutoff=datetime(2024, 1, 1, 2, 5),
-            fees_ex_vat=0.0,
+            fees_inc_vat=0.0,
             vat_multiplier=1.25,
             charge_power_kw=11.0,
         )

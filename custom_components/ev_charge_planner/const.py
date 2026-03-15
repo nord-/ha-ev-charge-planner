@@ -15,11 +15,14 @@ CONF_CHARGE_POWER = "charge_power"
 CONF_CHARGE_POWER_ENTITY = "charge_power_entity"
 CONF_DEADLINE_ENTITY = "deadline_entity"
 CONF_PRICE_SENSOR = "price_sensor"
-CONF_GRID_FEES_EX_VAT = "grid_fees_ex_vat"
+CONF_GRID_FEES_EX_VAT = "grid_fees_ex_vat"  # legacy
+CONF_FEES_ENTITY = "fees_entity"
+CONF_FEES_FIXED = "fees_fixed"
+CONF_VAT_PERCENT = "vat_percent"
 
 # Defaults
-DEFAULT_VAT_MULTIPLIER = 1.25
-DEFAULT_GRID_FEES = 0.0
+DEFAULT_VAT_PERCENT = 25.0
+DEFAULT_FEES = 0.0
 DEFAULT_SOC_TARGET = 80
 
 # Hub
