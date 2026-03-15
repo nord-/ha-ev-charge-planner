@@ -68,7 +68,7 @@ def find_periods_single(
         duration: Required charging time in hours (quarter-hour resolution).
         deadline: Car must be ready by this time.
         cutoff: Earliest allowed start time.
-        fees_inc_vat: Grid fees excluding VAT (kr/kWh).
+        fees_inc_vat: Fees including VAT (kr/kWh).
         vat_multiplier: VAT multiplier (e.g. 1.25 for Swedish 25%).
         charge_power_kw: Charging power in kW.
         other_windows: Other vehicles' active charging windows for overlap calc.

@@ -174,18 +174,21 @@ class Hub:
             # Deadline from input_datetime entity
             deadline = self._get_deadline(vc.get(CONF_DEADLINE_ENTITY), now)
 
+            # VAT multiplier from percent (guard against invalid values)
+            vat_percent = max(0.0, float(vc.get(CONF_VAT_PERCENT, DEFAULT_VAT_PERCENT)))
+            vat_multiplier = 1 + vat_percent / 100
+
             # Fees: entity or fixed value (inc VAT)
             fees_entity = vc.get(CONF_FEES_ENTITY)
             if fees_entity:
                 fees_inc_vat = self._get_state_float(fees_entity, DEFAULT_FEES)
+            elif CONF_FEES_FIXED in vc:
+                fees_inc_vat = float(vc[CONF_FEES_FIXED])
+            elif CONF_GRID_FEES_EX_VAT in vc:
+                # Legacy: convert ex-VAT to inc-VAT
+                fees_inc_vat = float(vc[CONF_GRID_FEES_EX_VAT]) * vat_multiplier
             else:
-                fees_inc_vat = float(
-                    vc.get(CONF_FEES_FIXED, vc.get(CONF_GRID_FEES_EX_VAT, DEFAULT_FEES))
-                )
-
-            # VAT multiplier from percent
-            vat_percent = float(vc.get(CONF_VAT_PERCENT, DEFAULT_VAT_PERCENT))
-            vat_multiplier = 1 + vat_percent / 100
+                fees_inc_vat = DEFAULT_FEES
 
             v = Vehicle(
                 name=name,
@@ -262,7 +265,10 @@ class Hub:
                     deadline += timedelta(days=1)
                 return deadline
             else:
-                return datetime.fromisoformat(time_str)
+                parsed = datetime.fromisoformat(time_str)
+                if parsed.tzinfo is None and now.tzinfo is not None:
+                    parsed = parsed.replace(tzinfo=now.tzinfo)
+                return parsed
         except (ValueError, IndexError):
             return now + timedelta(hours=8)
 
