@@ -10,16 +10,16 @@ from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.helpers.event import async_track_state_change_event
 
 from ..const import (
+    CONF_BATTERY_CAPACITY,
     CONF_CHARGE_POWER,
     CONF_CHARGE_POWER_ENTITY,
     CONF_DEADLINE_ENTITY,
     CONF_GRID_FEES_EX_VAT,
+    CONF_PRICE_SENSOR,
     CONF_SOC_SENSOR,
     CONF_SOC_TARGET,
     CONF_SOC_TARGET_ENTITY,
     CONF_SOC_TARGET_FIXED,
-    CONF_BATTERY_CAPACITY,
-    CONF_PRICE_SENSOR,
     CONF_VEHICLE_NAME,
     DEFAULT_GRID_FEES,
     DEFAULT_SOC_TARGET,
@@ -69,8 +69,12 @@ class Hub:
 
         # Listen to all vehicle-related entities
         for vc in self._vehicle_configs:
-            for key in (CONF_SOC_SENSOR, CONF_SOC_TARGET_ENTITY,
-                        CONF_CHARGE_POWER_ENTITY, CONF_DEADLINE_ENTITY):
+            for key in (
+                CONF_SOC_SENSOR,
+                CONF_SOC_TARGET_ENTITY,
+                CONF_CHARGE_POWER_ENTITY,
+                CONF_DEADLINE_ENTITY,
+            ):
                 entity = vc.get(key)
                 if entity:
                     entities_to_track.add(entity)
@@ -207,11 +211,10 @@ class Hub:
             if len(time_str) <= 8:  # "HH:MM" or "HH:MM:SS"
                 parts = time_str.split(":")
                 hour, minute = int(parts[0]), int(parts[1])
-                return now.replace(
-                    hour=hour, minute=minute, second=0, microsecond=0
-                )
+                return now.replace(hour=hour, minute=minute, second=0, microsecond=0)
             else:
                 from datetime import datetime as dt
+
                 return dt.fromisoformat(time_str)
         except (ValueError, IndexError):
             return now + timedelta(hours=8)
