@@ -44,10 +44,11 @@ class ChargePlannerSensor(SensorEntity):
 
     async def async_added_to_hass(self) -> None:
         """Register callback with hub when entity is added."""
-        self._hub.register_update_callback(self._on_hub_update)
-        # Trigger initial data load
+        # Load initial data before registering callback to avoid
+        # async_write_ha_state() before entity is fully registered.
         await self._hub.async_update()
         self._update_from_hub()
+        self._hub.register_update_callback(self._on_hub_update)
 
     async def async_will_remove_from_hass(self) -> None:
         """Unregister callback when entity is removed."""
