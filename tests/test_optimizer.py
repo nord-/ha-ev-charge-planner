@@ -266,6 +266,49 @@ class TestOptimizeJoint:
         starts = {r1.best_period.start.hour, r2.best_period.start.hour}
         assert starts == {2, 10}
 
+    def test_best_period_matches_combo_assignment(self):
+        """best_period is derived from the winning combo via _cost_at_start.
+
+        Two vehicles sharing a charger. Hours 2-3 are cheapest, 10-11
+        slightly more expensive. The optimizer splits them across the two
+        cheap blocks. Verify best_period matches the combo-assigned start
+        for each vehicle (not just whatever all_periods[0] happens to be).
+        """
+        now = datetime(2024, 1, 1, 0, 0)
+        values = [10.0] * 24
+        values[2] = 0.1
+        values[3] = 0.1
+        values[10] = 0.15
+        values[11] = 0.15
+        prices = make_prices(datetime(2024, 1, 1, 0, 0), values)
+
+        # Each needs 2h
+        v1 = make_vehicle(
+            "Car1", 0, 100, battery_kwh=22, charge_power_kw=11, deadline=datetime(2024, 1, 2, 7, 0)
+        )
+        v2 = make_vehicle(
+            "Car2", 0, 100, battery_kwh=22, charge_power_kw=11, deadline=datetime(2024, 1, 2, 7, 0)
+        )
+
+        results = optimize_joint([v1, v2], prices, now)
+
+        r1 = results["Car1"]
+        r2 = results["Car2"]
+        assert r1.best_period is not None
+        assert r2.best_period is not None
+
+        # The combo should split: one at hour 2, one at hour 10
+        starts = {r1.best_period.start.hour, r2.best_period.start.hour}
+        assert starts == {2, 10}
+
+        # best_period must exist in all_periods for each vehicle
+        for r in [r1, r2]:
+            assert r.best_period.start in [p.start for p in r.all_periods]
+            # best_period cost must match the corresponding entry in all_periods
+            matching = [p for p in r.all_periods if p.start == r.best_period.start]
+            assert len(matching) == 1
+            assert r.best_period.total_cost == matching[0].total_cost
+
     def test_empty_prices(self):
         now = datetime(2024, 1, 1, 12, 0)
         v = make_vehicle("Tesla", 50, 80)

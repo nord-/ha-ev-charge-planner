@@ -50,6 +50,10 @@ class Hub:
         self._unsub_listeners: list = []
         self._update_callbacks: list = []
 
+        # Freeze state persisted across update cycles:
+        # {vehicle_name: (frozen_duration, original_period_end)}
+        self._freeze_state: dict[str, tuple[float, datetime]] = {}
+
         # Determine price sensor (all vehicles share the same one)
         price_entity = vehicle_configs[0].get(CONF_PRICE_SENSOR) if vehicle_configs else None
         self.spotprice = SpotPriceFactory.create(hass, price_entity, test)
@@ -119,9 +123,14 @@ class Hub:
         return self._results
 
     def _build_vehicles(self, now: datetime) -> list[Vehicle]:
-        """Build Vehicle objects from config + current HA state."""
+        """Build Vehicle objects from config + current HA state.
+
+        Applies persisted freeze state so that frozen vehicles retain their
+        locked duration across update cycles.
+        """
         vehicles = []
         for vc in self._vehicle_configs:
+            name = vc[CONF_VEHICLE_NAME]
             current_soc = self._get_state_float(vc.get(CONF_SOC_SENSOR), 0.0)
 
             # Target SoC: entity or fixed value
@@ -141,32 +150,52 @@ class Hub:
             # Deadline from input_datetime entity
             deadline = self._get_deadline(vc.get(CONF_DEADLINE_ENTITY), now)
 
-            vehicles.append(
-                Vehicle(
-                    name=vc[CONF_VEHICLE_NAME],
-                    battery_capacity_kwh=float(vc[CONF_BATTERY_CAPACITY]),
-                    charge_power_kw=charge_power,
-                    current_soc=current_soc,
-                    target_soc=target_soc,
-                    deadline=deadline,
-                    grid_fees_ex_vat=float(vc.get(CONF_GRID_FEES_EX_VAT, DEFAULT_GRID_FEES)),
-                    vat_multiplier=DEFAULT_VAT_MULTIPLIER,
-                )
+            v = Vehicle(
+                name=name,
+                battery_capacity_kwh=float(vc[CONF_BATTERY_CAPACITY]),
+                charge_power_kw=charge_power,
+                current_soc=current_soc,
+                target_soc=target_soc,
+                deadline=deadline,
+                grid_fees_ex_vat=float(vc.get(CONF_GRID_FEES_EX_VAT, DEFAULT_GRID_FEES)),
+                vat_multiplier=DEFAULT_VAT_MULTIPLIER,
             )
+
+            # Restore persisted freeze state (only if not expired)
+            if name in self._freeze_state:
+                _, original_end = self._freeze_state[name]
+                if now < original_end:
+                    v.frozen = True
+                    v.frozen_duration = self._freeze_state[name][0]
+                else:
+                    del self._freeze_state[name]
+
+            vehicles.append(v)
         return vehicles
 
     def _manage_freeze(self, vehicles: list[Vehicle], now: datetime) -> None:
-        """Freeze/unfreeze vehicles based on whether their charge period is active."""
+        """Freeze/unfreeze vehicles, persisting state in Hub across cycles.
+
+        Uses the *original* period end time (captured at freeze) for unfreeze
+        decisions, so recomputed periods don't cause premature or delayed unfreeze.
+        """
         for v in vehicles:
             result = self._results.get(v.name)
-            if result and result.best_period:
-                if now >= result.best_period.start and now < result.best_period.end:
-                    if not v.frozen:
-                        v.freeze()
-                        _LOGGER.info("Vehicle %s charging started, freezing", v.name)
-                elif v.frozen and now >= result.best_period.end:
+            if v.name in self._freeze_state:
+                # Already frozen — check against original period end
+                _, original_end = self._freeze_state[v.name]
+                if now >= original_end:
                     v.unfreeze()
+                    del self._freeze_state[v.name]
                     _LOGGER.info("Vehicle %s charging ended, unfreezing", v.name)
+            elif result and result.best_period:
+                if now >= result.best_period.start and now < result.best_period.end:
+                    v.freeze()
+                    self._freeze_state[v.name] = (
+                        v.frozen_duration,
+                        result.best_period.end,
+                    )
+                    _LOGGER.info("Vehicle %s charging started, freezing", v.name)
 
     def _get_state_float(self, entity_id: str | None, default: float) -> float:
         if not entity_id or not self._hass:
