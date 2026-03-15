@@ -9,12 +9,15 @@ from __future__ import annotations
 
 import itertools
 import logging
+import math
 from datetime import datetime, timedelta
 
 from .models import ChargePeriod, PriceSlot, VehicleResult
 from .vehicle import Vehicle
 
 _LOGGER = logging.getLogger(__name__)
+
+_MAX_JOINT_COMBINATIONS = 100_000
 
 
 def calculate_cutoff(now: datetime, entry_hours: float) -> datetime:
@@ -85,8 +88,6 @@ def _vehicle_window(
     start: datetime, duration: float, entry_hours: float
 ) -> tuple[datetime, datetime]:
     """Calculate the time window a vehicle occupies when starting at `start`."""
-    import math
-
     slots = math.ceil(duration / entry_hours)
     end = start + timedelta(hours=slots * entry_hours)
     return (start, end)
@@ -141,6 +142,39 @@ def _cost_at_start(
         duration_hours=duration,
         hours_used=slots_used,
     )
+
+
+def _optimize_sequential(
+    active: list[Vehicle],
+    prices: list[PriceSlot],
+    entry_hours: float,
+    vehicle_params: list[dict],
+    results: dict[str, VehicleResult],
+) -> dict[str, VehicleResult]:
+    """Fallback: optimize vehicles one at a time, each considering prior results."""
+    assigned_windows: list[tuple[datetime, datetime]] = []
+
+    for idx, vp in enumerate(vehicle_params):
+        v = vp["vehicle"]
+        periods = find_periods_single(
+            prices, v.duration_hours, vp["deadline"], vp["cutoff"],
+            v.grid_fees_ex_vat, v.vat_multiplier, v.charge_power_kw,
+            other_windows=assigned_windows if assigned_windows else None,
+        )
+        best = periods[0] if periods else None
+        results[v.name] = VehicleResult(
+            vehicle_name=v.name,
+            best_period=best,
+            all_periods=periods,
+            duration_hours=v.duration_hours,
+            needs_charging=True,
+        )
+        if best:
+            assigned_windows.append(
+                _vehicle_window(best.start, v.duration_hours, entry_hours)
+            )
+
+    return results
 
 
 def optimize_joint(
@@ -217,6 +251,17 @@ def optimize_joint(
                 "cutoff": cutoff,
             }
         )
+
+    # Safeguard: fall back to sequential optimization if combinatorial
+    # explosion would be too expensive (>100k combinations)
+    total_combos = math.prod(len(c) for c in candidates_per_vehicle) if candidates_per_vehicle else 0
+    if total_combos > _MAX_JOINT_COMBINATIONS:
+        _LOGGER.warning(
+            "Joint optimization skipped: %d combinations exceeds limit %d. "
+            "Falling back to sequential optimization.",
+            total_combos, _MAX_JOINT_COMBINATIONS,
+        )
+        return _optimize_sequential(active, prices, entry_hours, vehicle_params, results)
 
     best_total_cost = float("inf")
     best_combo: tuple[int, ...] | None = None
