@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
 from homeassistant.config_entries import ConfigEntry
@@ -67,7 +66,7 @@ class ChargePlannerSensor(SensorEntity):
         if not result.all_periods:
             return ""
 
-        now = datetime.now()
+        now = self._hub.dt_model.now()
         lines = ["| Period | Kostnad |", "|---|---|"]
         for p in result.all_periods:
             t1 = p.start.strftime("%H:%M")
