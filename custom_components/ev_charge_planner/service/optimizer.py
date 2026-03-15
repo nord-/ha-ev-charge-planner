@@ -308,9 +308,15 @@ def optimize_joint(
 
             # best_period is computed directly from the winning combo
             best_period = _cost_at_start(
-                prices, start_idx, v.duration_hours, deadline,
-                v.grid_fees_ex_vat, v.vat_multiplier, v.charge_power_kw,
-                entry_hours, other_windows=other_wins,
+                prices,
+                start_idx,
+                v.duration_hours,
+                deadline,
+                v.grid_fees_ex_vat,
+                v.vat_multiplier,
+                v.charge_power_kw,
+                entry_hours,
+                other_windows=other_wins,
             )
 
             # all_periods is an informational list (overlap based on best combo)

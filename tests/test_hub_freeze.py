@@ -4,18 +4,22 @@ from datetime import datetime, timedelta
 
 import pytest
 
-from custom_components.ev_charge_planner.service.hub import Hub
-from custom_components.ev_charge_planner.service.models import PriceSlot, ChargePeriod, VehicleResult
-from custom_components.ev_charge_planner.service.spotprice.dto import SpotPriceDTO
 from custom_components.ev_charge_planner.const import (
-    CONF_VEHICLE_NAME,
-    CONF_SOC_SENSOR,
-    CONF_SOC_TARGET_FIXED,
     CONF_BATTERY_CAPACITY,
     CONF_CHARGE_POWER,
     CONF_DEADLINE_ENTITY,
     CONF_PRICE_SENSOR,
+    CONF_SOC_SENSOR,
+    CONF_SOC_TARGET_FIXED,
+    CONF_VEHICLE_NAME,
 )
+from custom_components.ev_charge_planner.service.hub import Hub
+from custom_components.ev_charge_planner.service.models import (
+    ChargePeriod,
+    PriceSlot,
+    VehicleResult,
+)
+from custom_components.ev_charge_planner.service.spotprice.dto import SpotPriceDTO
 
 
 def make_vehicle_config(name="Tesla", soc_target=80, battery=60, power=11):
