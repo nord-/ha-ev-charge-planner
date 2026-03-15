@@ -93,9 +93,9 @@ class Hub:
         self._hass.async_create_task(self.async_update())
 
     async def async_update(self) -> dict[str, VehicleResult]:
-        """Run optimization (throttled)."""
+        """Run optimization (throttled, but always allow first successful run)."""
         now_mono = time.monotonic()
-        if now_mono - self._last_update < SPOTPRICE_THROTTLE_SECONDS:
+        if self._results and now_mono - self._last_update < SPOTPRICE_THROTTLE_SECONDS:
             return self._results
 
         # Update spot prices
@@ -234,6 +234,12 @@ class Hub:
 
     def register_update_callback(self, callback) -> None:
         self._update_callbacks.append(callback)
+
+    def unregister_update_callback(self, callback) -> None:
+        try:
+            self._update_callbacks.remove(callback)
+        except ValueError:
+            pass
 
     async def async_teardown(self) -> None:
         for unsub in self._unsub_listeners:

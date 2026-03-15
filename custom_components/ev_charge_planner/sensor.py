@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
 from homeassistant.config_entries import ConfigEntry
@@ -34,7 +33,7 @@ class ChargePlannerSensor(SensorEntity):
     """Sensor showing optimal charge start time for a vehicle."""
 
     _attr_device_class = SensorDeviceClass.TIMESTAMP
-    _attr_should_poll = True
+    _attr_should_poll = False
 
     def __init__(self, hub, vehicle_name: str, entry_id: str) -> None:
         self._hub = hub
@@ -43,9 +42,26 @@ class ChargePlannerSensor(SensorEntity):
         self._attr_unique_id = f"ev_charge_planner_{entry_id}_{vehicle_name}"
         self._periods_list: str = ""
 
-    async def async_update(self) -> None:
-        """Poll hub for latest results."""
+    async def async_added_to_hass(self) -> None:
+        """Register callback with hub when entity is added."""
+        # Load initial data before registering callback to avoid
+        # async_write_ha_state() before entity is fully registered.
         await self._hub.async_update()
+        self._update_from_hub()
+        self._hub.register_update_callback(self._on_hub_update)
+
+    async def async_will_remove_from_hass(self) -> None:
+        """Unregister callback when entity is removed."""
+        self._hub.unregister_update_callback(self._on_hub_update)
+
+    @callback
+    def _on_hub_update(self) -> None:
+        """Handle hub update notification."""
+        self._update_from_hub()
+        self.async_write_ha_state()
+
+    def _update_from_hub(self) -> None:
+        """Read latest results from hub."""
         result = self._hub.get_result(self._vehicle_name)
 
         if result is None or not result.needs_charging or result.best_period is None:
@@ -67,7 +83,7 @@ class ChargePlannerSensor(SensorEntity):
         if not result.all_periods:
             return ""
 
-        now = datetime.now()
+        now = self._hub.dt_model.now()
         lines = ["| Period | Kostnad |", "|---|---|"]
         for p in result.all_periods:
             t1 = p.start.strftime("%H:%M")
