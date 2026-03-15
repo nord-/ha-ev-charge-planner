@@ -29,7 +29,7 @@ from ..const import (
 from .dt_model import DTModel
 from .models import VehicleResult
 from .optimizer import optimize_joint
-from .spotprice.factory import SpotPriceFactory
+from .spotprice.nordpool import NordPoolAdapter
 from .vehicle import Vehicle
 
 _LOGGER = logging.getLogger(__name__)
@@ -54,9 +54,11 @@ class Hub:
         # {vehicle_name: (frozen_duration, original_period_end)}
         self._freeze_state: dict[str, tuple[float, datetime]] = {}
 
+        self._prices: list = []
+
         # Determine price sensor (all vehicles share the same one)
         price_entity = vehicle_configs[0].get(CONF_PRICE_SENSOR) if vehicle_configs else None
-        self.spotprice = SpotPriceFactory.create(hass, price_entity, test)
+        self.spotprice = NordPoolAdapter(hass, price_entity, test)
 
     async def async_setup(self) -> None:
         """Set up state listeners."""
@@ -99,8 +101,10 @@ class Hub:
             return self._results
 
         # Update spot prices
-        await self.spotprice.async_update()
-        if not self.spotprice.is_initialized:
+        prices = await self.spotprice.async_fetch()
+        if prices is not None:
+            self._prices = prices
+        if not self._prices:
             _LOGGER.debug("Spot prices not yet available")
             return self._results
 
@@ -110,7 +114,7 @@ class Hub:
         vehicles = self._build_vehicles(now)
 
         # Run joint optimization
-        self._results = optimize_joint(vehicles, self.spotprice.prices, now)
+        self._results = optimize_joint(vehicles, self._prices, now)
         self._last_update = now_mono
 
         # Manage freeze state
