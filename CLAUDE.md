@@ -36,11 +36,11 @@ The integration follows a layered design: **HA integration layer** → **Hub coo
 
 **Duration formula:** `ceil((target_soc - current_soc) / 100 × battery_kWh / charge_power_kW × 4) / 4`
 
-**Price per slot:** `(nordpool_value + grid_fees_ex_vat) × 1.25` (Swedish VAT)
+**Price per slot:** `nordpool_value × vat_multiplier + fees_inc_vat` (VAT configurable as %, fees from entity or fixed)
 
 ### Hub (`service/hub.py`)
 
-Central coordinator per config entry. Listens to state changes on price sensor + all vehicle entities (SoC, target, deadline, power). Throttles updates to 60s. Uses injectable `StateReader` protocol for HA state access. Manages **freeze state** via `_freeze_state` dict storing `(frozen_duration, original_period_end)` tuples — once a vehicle's charging period has started, its parameters are locked until the period ends. Expired freeze entries are pruned in `_build_vehicles()`.
+Central coordinator per config entry. Listens to state changes on price sensor + all vehicle entities (SoC, target, deadline, power, fees). Throttles updates to 60s. Uses injectable `StateReader` protocol for HA state access. Manages **freeze state** via `_freeze_state` dict storing `(frozen_duration, original_period_end)` tuples — once a vehicle's charging period has started, its parameters are locked until the period ends. Expired freeze entries are pruned in `_build_vehicles()`. Deadline rolls to next day if time has already passed. Fees read from entity (inc VAT) or fixed value, with legacy `grid_fees_ex_vat` fallback (auto-converted). VAT computed from configurable percentage.
 
 ### Spot price layer (`service/spotprice/`)
 
@@ -53,8 +53,8 @@ Central coordinator per config entry. Listens to state changes on price sensor +
 ### HA layer
 
 - `sensor.py` — `ChargePlannerSensor` entity, `device_class: timestamp`, event-driven via Hub callback + initial poll
-- `config_flow.py` — multi-step: add vehicle → add another? → finish
-- `__init__.py` — creates Hub, forwards to sensor platform
+- `config_flow.py` — multi-step: add vehicle → add another? → finish. Options flow for editing vehicle config post-setup.
+- `__init__.py` — creates Hub, forwards to sensor platform, registers update listener for options flow reload
 
 ## Key Design Decisions
 
@@ -67,6 +67,7 @@ Central coordinator per config entry. Listens to state changes on price sensor +
 - **ChargeNode** wallbox (2 ports, shared power) — Tesla Model Y + BYD Dolphin
 - **NordPool** `sensor.nordpool_kwh_se3_sek_3_095_0` (SE3 zone)
 - Tesla SoC via TeslaMate/MQTT, BYD SoC via MQTT
+- Fees template sensor `sensor.template_fees_inc_vat` (påslag + elskatt + nätavgift, inkl moms)
 - Existing automations trigger on charge_period sensors to start/stop charging
 - Integration only calculates optimal start time — does NOT control the charger
 
