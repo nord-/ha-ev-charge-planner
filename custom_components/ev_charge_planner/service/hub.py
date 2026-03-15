@@ -171,21 +171,17 @@ class Hub:
             if result and result.best_period:
                 if now >= result.best_period.start and now < result.best_period.end:
                     if v.name not in self._freeze_state:
-                        duration = v._calc_duration()
-                        self._freeze_state[v.name] = duration
-                        v.frozen = True
-                        v.frozen_duration = duration
+                        v.freeze()
+                        self._freeze_state[v.name] = v.frozen_duration
                         _LOGGER.info("Vehicle %s charging started, freezing", v.name)
                 elif v.name in self._freeze_state and now >= result.best_period.end:
+                    v.unfreeze()
                     del self._freeze_state[v.name]
-                    v.frozen = False
-                    v.frozen_duration = None
                     _LOGGER.info("Vehicle %s charging ended, unfreezing", v.name)
             elif v.name in self._freeze_state:
                 # No valid period anymore — unfreeze
+                v.unfreeze()
                 del self._freeze_state[v.name]
-                v.frozen = False
-                v.frozen_duration = None
 
     def _get_state_float(self, entity_id: str | None, default: float) -> float:
         if not entity_id or not self._hass:

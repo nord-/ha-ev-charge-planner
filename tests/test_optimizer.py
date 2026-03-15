@@ -253,15 +253,15 @@ class TestOptimizeJoint:
         starts = {r1.best_period.start.hour, r2.best_period.start.hour}
         assert starts == {2, 10}
 
-    def test_best_period_matches_combo_not_all_periods(self):
-        """best_period must come from the winning combo, not all_periods[0].
+    def test_best_period_matches_combo_assignment(self):
+        """best_period is derived from the winning combo via _cost_at_start.
 
-        Scenario: two vehicles, overlap changes the cost ranking so that
-        all_periods[0] (cheapest ignoring the specific combo) differs from
-        the combo-derived best_period.
+        Two vehicles sharing a charger. Hours 2-3 are cheapest, 10-11
+        slightly more expensive. The optimizer splits them across the two
+        cheap blocks. Verify best_period matches the combo-assigned start
+        for each vehicle (not just whatever all_periods[0] happens to be).
         """
         now = datetime(2024, 1, 1, 0, 0)
-        # Hour 2-3 cheap, hour 10-11 cheap, rest expensive
         values = [10.0] * 24
         values[2] = 0.1
         values[3] = 0.1
@@ -279,15 +279,20 @@ class TestOptimizeJoint:
 
         r1 = results["Car1"]
         r2 = results["Car2"]
+        assert r1.best_period is not None
+        assert r2.best_period is not None
+
         # The combo should split: one at hour 2, one at hour 10
         starts = {r1.best_period.start.hour, r2.best_period.start.hour}
         assert starts == {2, 10}
 
-        # Verify best_period is the combo-derived one, not necessarily all_periods[0]
-        # The car assigned to hour 10 should have best_period at hour 10
-        # even if all_periods[0] (without overlap context of the other car) might differ
+        # best_period must exist in all_periods for each vehicle
         for r in [r1, r2]:
             assert r.best_period.start in [p.start for p in r.all_periods]
+            # best_period cost must match the corresponding entry in all_periods
+            matching = [p for p in r.all_periods if p.start == r.best_period.start]
+            assert len(matching) == 1
+            assert r.best_period.total_cost == matching[0].total_cost
 
     def test_empty_prices(self):
         now = datetime(2024, 1, 1, 12, 0)
