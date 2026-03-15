@@ -29,6 +29,7 @@ from ..const import (
 from .dt_model import DTModel
 from .models import PriceSlot, VehicleResult
 from .optimizer import optimize_joint
+from .spotprice.ispotprice import ISpotPrice
 from .spotprice.nordpool import NordPoolAdapter
 from .state_reader import HassStateReader, StateReader
 from .vehicle import Vehicle
@@ -45,11 +46,17 @@ class Hub:
         vehicle_configs: list[dict],
         test: bool = False,
         state_reader: StateReader | None = None,
+        spotprice: ISpotPrice | None = None,
     ):
         self._hass = hass
         self._vehicle_configs = vehicle_configs
         self._test = test
-        self._state_reader = state_reader or (HassStateReader(hass) if hass else None)
+        if state_reader is not None:
+            self._state_reader = state_reader
+        elif hass is not None:
+            self._state_reader = HassStateReader(hass)
+        else:
+            self._state_reader = None
         self.dt_model = DTModel()
         self._results: dict[str, VehicleResult] = {}
         self._last_update: float = 0
@@ -63,8 +70,11 @@ class Hub:
         self._prices: list[PriceSlot] = []
 
         # Determine price sensor (all vehicles share the same one)
-        price_entity = vehicle_configs[0].get(CONF_PRICE_SENSOR) if vehicle_configs else None
-        self.spotprice = NordPoolAdapter(hass, price_entity, test)
+        if spotprice is not None:
+            self.spotprice = spotprice
+        else:
+            price_entity = vehicle_configs[0].get(CONF_PRICE_SENSOR) if vehicle_configs else None
+            self.spotprice = NordPoolAdapter(hass, price_entity, test)
 
     async def async_setup(self) -> None:
         """Set up state listeners."""
@@ -208,7 +218,7 @@ class Hub:
                     _LOGGER.info("Vehicle %s charging started, freezing", v.name)
 
     def _get_state_float(self, entity_id: str | None, default: float) -> float:
-        if not entity_id or not self._state_reader:
+        if not entity_id or self._state_reader is None:
             return default
         value = self._state_reader.get_state(entity_id)
         if value is None:
@@ -220,7 +230,7 @@ class Hub:
 
     def _get_deadline(self, entity_id: str | None, now: datetime) -> datetime:
         """Parse deadline from input_datetime entity."""
-        if not entity_id or not self._state_reader:
+        if not entity_id or self._state_reader is None:
             return now + timedelta(hours=8)  # fallback
         time_str = self._state_reader.get_state(entity_id)
         if time_str is None:

@@ -1,4 +1,4 @@
-"""Tests for Hub freeze-state persistence across update cycles."""
+"""Tests for Hub freeze-state persistence and price caching."""
 
 from datetime import datetime, timedelta
 
@@ -16,8 +16,10 @@ from custom_components.ev_charge_planner.const import (
 from custom_components.ev_charge_planner.service.hub import Hub
 from custom_components.ev_charge_planner.service.models import (
     ChargePeriod,
+    PriceSlot,
     VehicleResult,
 )
+from custom_components.ev_charge_planner.service.spotprice.ispotprice import ISpotPrice
 
 
 def make_vehicle_config(name="Tesla", soc_target=80, battery=60, power=11):
@@ -105,3 +107,52 @@ async def test_unfreeze_after_period_ends():
     # New vehicles should not be frozen
     vehicles3 = hub._build_vehicles(hub.dt_model.now())
     assert not vehicles3[0].frozen
+
+
+class StubSpotPrice(ISpotPrice):
+    """Stub ISpotPrice for testing Hub price caching."""
+
+    def __init__(self, prices=None):
+        self._prices = prices
+
+    @property
+    def entity(self):
+        return None
+
+    async def async_fetch(self):
+        return self._prices
+
+
+@pytest.mark.asyncio
+async def test_price_caching_on_fetch_none():
+    """Hub caches prices and uses them when async_fetch returns None."""
+    now = datetime(2024, 1, 1, 0, 0)
+    prices = [PriceSlot(start=now + timedelta(hours=i), value=0.5) for i in range(24)]
+    stub = StubSpotPrice(prices)
+
+    config = make_vehicle_config(soc_target=60, battery=60, power=11)
+    hub = Hub(None, [config], test=True, spotprice=stub)
+    hub.dt_model.set_now(now)
+
+    # First update — fetches prices and produces results
+    results = await hub.async_update()
+    assert results["Tesla"].best_period is not None
+
+    # Stub now returns None (e.g. temporary HA issue)
+    stub._prices = None
+    hub._last_update = 0  # reset throttle
+
+    # Second update — should use cached prices
+    results2 = await hub.async_update()
+    assert results2["Tesla"].best_period is not None
+
+
+@pytest.mark.asyncio
+async def test_no_prices_returns_empty_results():
+    """Hub returns empty results when no prices have ever been fetched."""
+    stub = StubSpotPrice(None)
+    config = make_vehicle_config()
+    hub = Hub(None, [config], test=True, spotprice=stub)
+
+    results = await hub.async_update()
+    assert results == {}
