@@ -69,44 +69,13 @@ def find_periods_single(
         if p.start < cutoff or p.start >= deadline:
             continue
 
-        eff_hours = 0.0
-        price_sum = 0.0
-        slots_used = 0
-        end = None
-
-        for j in range(i, len(prices)):
-            if end is not None:
-                break
-            q = prices[j]
-
-            # Check overlap with other vehicles' windows
-            overlap_factor = 1.0
-            if other_windows:
-                for win_start, win_end in other_windows:
-                    if q.start >= win_start and q.start < win_end:
-                        overlap_factor = 0.5
-                        break
-
-            eff_hours += entry_hours * overlap_factor
-            price_sum += (q.value + fees_ex_vat) * vat_multiplier
-            slots_used += 1
-
-            if eff_hours >= duration:
-                end = q.start + timedelta(hours=entry_hours)
-
-        if end is not None and end <= deadline:
-            avg_price = price_sum / slots_used
-            total_cost = avg_price * duration * charge_power_kw
-            periods.append(
-                ChargePeriod(
-                    start=p.start,
-                    end=end,
-                    avg_price=round(avg_price, 4),
-                    total_cost=round(total_cost, 2),
-                    duration_hours=duration,
-                    hours_used=slots_used,
-                )
-            )
+        period = _cost_at_start(
+            prices, i, duration, deadline,
+            fees_ex_vat, vat_multiplier, charge_power_kw,
+            entry_hours, other_windows=other_windows,
+        )
+        if period is not None:
+            periods.append(period)
 
     periods.sort(key=lambda p: (p.total_cost, p.start))
     return periods
