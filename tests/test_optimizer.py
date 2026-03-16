@@ -242,6 +242,61 @@ class TestFindPeriodsSingle:
         # total_cost = 1.83 * 1.0 * 11.0 = 20.13
         assert periods[0].total_cost == 20.13
 
+    def test_sort_by_rounded_cost_then_earliest_start(self):
+        """Periods with same cost rounded to whole kronor should sort by earliest start.
+
+        When two start times yield costs that differ by less than 1 kr,
+        the earlier start should come first — no point delaying and risking
+        not finishing just to save a few öre.
+        """
+        start = datetime(2024, 1, 1, 0, 0)
+        # With charge_power_kw=10, duration=1h: total_cost = avg_price * 1 * 10
+        # Hour 0: (1.04 * 1.25 + 0) * 10 = 13.00  -> rounds to 13
+        # Hour 1: (1.05 * 1.25 + 0) * 10 = 13.125 -> rounds to 13
+        # Hour 2: (1.00 * 1.25 + 0) * 10 = 12.50  -> rounds to 13 (away-from-zero)
+        # Hour 3: (1.10 * 1.25 + 0) * 10 = 13.75  -> rounds to 14
+        values = [1.04, 1.05, 1.00, 1.10] + [2.0] * 20
+        prices = make_prices(start, values)
+
+        periods = find_periods_single(
+            prices=prices,
+            duration=1.0,
+            deadline=datetime(2024, 1, 1, 23, 5),
+            cutoff=datetime(2023, 12, 31, 23, 5),
+            fees_inc_vat=0.0,
+            vat_multiplier=1.25,
+            charge_power_kw=10.0,
+        )
+
+        # Hours 0 (13.00), 1 (13.125), 2 (12.50) all round to 13 kr
+        # They should appear in start-time order: hour 0, 1, 2
+        top_three = periods[:3]
+        assert top_three[0].start.hour == 0
+        assert top_three[1].start.hour == 1
+        assert top_three[2].start.hour == 2
+
+    def test_half_kronor_rounds_up(self):
+        """12.50 kr rounds to 13 kr (away-from-zero), not 12 (banker's rounding)."""
+        start = datetime(2024, 1, 1, 0, 0)
+        # Hour 0: (1.00 * 1.25 + 0) * 10 = 12.50  -> 13 kr (away-from-zero)
+        # Hour 1: (0.96 * 1.25 + 0) * 10 = 12.00  -> 12 kr
+        values = [1.00, 0.96] + [2.0] * 22
+        prices = make_prices(start, values)
+
+        periods = find_periods_single(
+            prices=prices,
+            duration=1.0,
+            deadline=datetime(2024, 1, 1, 23, 5),
+            cutoff=datetime(2023, 12, 31, 23, 5),
+            fees_inc_vat=0.0,
+            vat_multiplier=1.25,
+            charge_power_kw=10.0,
+        )
+
+        # Hour 1 (12 kr) should come before hour 0 (13 kr)
+        assert periods[0].start.hour == 1
+        assert periods[1].start.hour == 0
+
     def test_overlap_increases_slots(self):
         start = datetime(2024, 1, 1, 0, 0)
         prices = make_prices(start, [1.0] * 10)
@@ -377,6 +432,55 @@ class TestOptimizeJoint:
             matching = [p for p in r.all_periods if p.start == r.best_period.start]
             assert len(matching) == 1
             assert r.best_period.total_cost == matching[0].total_cost
+
+    def test_joint_prefers_earliest_start_at_same_rounded_cost(self):
+        """Joint optimization picks the earlier combo when costs round to the same kr.
+
+        Three cheap slots: hour 2 (0.51), hour 6 (0.49), hour 10 (0.50).
+        All other hours are expensive (10.0). Each car needs 1h.
+
+        Non-overlap combos (total_cost = sum of (spot * 1.25 * 11)):
+          {2, 6}:  13.75 -> 14 kr, earliest=2
+          {2, 10}: 13.89 -> 14 kr, earliest=2
+          {6, 10}: 13.61 -> 14 kr, earliest=6
+
+        Without rounding fix: {6, 10} wins (lowest exact cost).
+        With rounding fix: all round to 14 kr, earliest=2 wins -> {2, 6}.
+        """
+        now = datetime(2024, 1, 1, 0, 0)
+        values = [10.0] * 24
+        values[2] = 0.51
+        values[6] = 0.49
+        values[10] = 0.50
+        prices = make_prices(datetime(2024, 1, 1, 0, 0), values)
+
+        # Each needs 1h: (100-0)/100 * 11 / 11 = 1.0h
+        v1 = make_vehicle(
+            "Car1",
+            0,
+            100,
+            battery_kwh=11,
+            charge_power_kw=11,
+            deadline=datetime(2024, 1, 2, 7, 0),
+        )
+        v2 = make_vehicle(
+            "Car2",
+            0,
+            100,
+            battery_kwh=11,
+            charge_power_kw=11,
+            deadline=datetime(2024, 1, 2, 7, 0),
+        )
+
+        results = optimize_joint([v1, v2], prices, now)
+
+        r1 = results["Car1"]
+        r2 = results["Car2"]
+        assert r1.best_period is not None
+        assert r2.best_period is not None
+        # One car at hour 2, the other at hour 6 — not {6, 10}
+        starts = sorted([r1.best_period.start.hour, r2.best_period.start.hour])
+        assert starts == [2, 6]
 
     def test_empty_prices(self):
         now = datetime(2024, 1, 1, 12, 0)

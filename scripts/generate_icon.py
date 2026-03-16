@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw
 
 GREEN = (30, 190, 105)  # #1EBE69
 WHITE = (255, 255, 255)
@@ -70,14 +70,6 @@ def draw_icon(size: int) -> Image.Image:
         return (bx + int(bolt_w * xf), by + int(bolt_h * yf))
 
     bolt_points = [
-        bp(0.53, 0.00),  # top point (slightly right of center)
-        bp(0.00, 0.53),  # left end of mid-shelf
-        bp(0.44, 0.53),  # right end of mid-shelf (where bottom half starts)
-        bp(0.47, 0.47),  # bottom-left of top half (notch)
-        bp(0.00, 0.53),  # (overlap cleaned below)
-    ]
-    # Simpler: follow the SVG shape faithfully
-    bolt_points = [
         bp(0.53, 0.00),  # top peak
         bp(0.00, 0.53),  # mid-shelf left
         bp(0.44, 0.53),  # mid-shelf right
@@ -85,8 +77,7 @@ def draw_icon(size: int) -> Image.Image:
         bp(1.00, 0.46),  # mid-shelf right (upper)
         bp(0.56, 0.46),  # mid-shelf left (upper)
     ]
-    draw.polygon(bolt_points, fill=(255, 220, 30), outline=(220, 180, 0),
-                 width=max(1, s // 128))
+    draw.polygon(bolt_points, fill=(255, 220, 30), outline=(220, 180, 0), width=max(1, s // 128))
 
     return img
 

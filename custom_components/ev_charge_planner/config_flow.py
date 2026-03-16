@@ -125,9 +125,23 @@ class EVChargePlannerOptionsFlow(config_entries.OptionsFlow):
             if action == "add":
                 return await self.async_step_add_vehicle()
             # edit — pick vehicle
-            self._vehicle_index = int(user_input.get("vehicle_index", 0))
+            vehicles = self._config_entry.data.get(CONF_VEHICLES, [])
+            if not vehicles:
+                return await self.async_step_add_vehicle()
+            vehicle_index = user_input.get("vehicle_index")
+            if vehicle_index is None or int(vehicle_index) >= len(vehicles):
+                return await self._show_init_form(
+                    errors={"vehicle_index": "invalid_vehicle"},
+                )
+            self._vehicle_index = int(vehicle_index)
             return await self.async_step_edit_vehicle()
 
+        return await self._show_init_form()
+
+    async def _show_init_form(
+        self, errors: dict[str, str] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Build and show the init form."""
         vehicles = self._config_entry.data.get(CONF_VEHICLES, [])
         vehicle_names = {str(i): vc[CONF_VEHICLE_NAME] for i, vc in enumerate(vehicles)}
 
@@ -139,7 +153,7 @@ class EVChargePlannerOptionsFlow(config_entries.OptionsFlow):
                 vol.Optional("vehicle_index"): vol.In(vehicle_names),
             }
         )
-        return self.async_show_form(step_id="init", data_schema=schema)
+        return self.async_show_form(step_id="init", data_schema=schema, errors=errors or {})
 
     async def async_step_add_vehicle(
         self, user_input: dict[str, Any] | None = None

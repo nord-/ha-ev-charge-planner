@@ -11,6 +11,7 @@ import itertools
 import logging
 import math
 from datetime import datetime, timedelta
+from decimal import ROUND_HALF_UP, Decimal
 
 from .models import ChargePeriod, PriceSlot, VehicleResult
 from .vehicle import Vehicle
@@ -18,6 +19,11 @@ from .vehicle import Vehicle
 _LOGGER = logging.getLogger(__name__)
 
 _MAX_JOINT_COMBINATIONS = 100_000
+
+
+def _round_kr(value: float) -> float:
+    """Round to whole kronor using away-from-zero (standard Swedish rounding)."""
+    return float(Decimal(str(value)).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
 
 
 def derive_entry_hours(prices: list[PriceSlot]) -> float:
@@ -101,7 +107,7 @@ def find_periods_single(
         if period is not None:
             periods.append(period)
 
-    periods.sort(key=lambda p: (p.total_cost, p.start))
+    periods.sort(key=lambda p: (_round_kr(p.total_cost), p.start))
     return periods
 
 
@@ -289,6 +295,7 @@ def optimize_joint(
 
     best_total_cost = float("inf")
     best_combo: tuple[int, ...] | None = None
+    best_earliest_start: datetime | None = None
 
     for combo in itertools.product(*candidates_per_vehicle):
         # Two-pass: first compute windows without overlap (for overlap detection),
@@ -326,9 +333,23 @@ def optimize_joint(
             actual_periods.append(period)
             total_cost += period.total_cost
 
-        if valid and total_cost < best_total_cost:
+        if not valid:
+            continue
+
+        rounded_cost = _round_kr(total_cost)
+        earliest_start = min(prices[si].start for si in combo)
+        if best_combo is None:
             best_total_cost = total_cost
             best_combo = combo
+            best_earliest_start = earliest_start
+            continue
+
+        rounded_best = _round_kr(best_total_cost)
+
+        if (rounded_cost, earliest_start) < (rounded_best, best_earliest_start):
+            best_total_cost = total_cost
+            best_combo = combo
+            best_earliest_start = earliest_start
 
     # Build results: best_period from best_combo, all_periods for informational list
     if best_combo is not None:
