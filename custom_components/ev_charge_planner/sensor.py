@@ -10,6 +10,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import CONF_VEHICLE_NAME, CONF_VEHICLES, DOMAIN, HUB
+from .service.optimizer import round_kr
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -114,5 +115,5 @@ class ChargePlannerSensor(SensorEntity):
             t2 = p.end.strftime("%H:%M")
             if p.end.date() > now.date():
                 t2 += "\u207a\u00b9"  # ⁺¹
-            lines.append(f"| {t1}\u2013{t2} | {p.total_cost:.0f} kr |")
+            lines.append(f"| {t1}\u2013{t2} | {round_kr(p.total_cost):.0f} kr |")
         return "\n".join(lines)

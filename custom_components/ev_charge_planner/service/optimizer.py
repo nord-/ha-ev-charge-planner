@@ -21,7 +21,7 @@ _LOGGER = logging.getLogger(__name__)
 _MAX_JOINT_COMBINATIONS = 100_000
 
 
-def _round_kr(value: float) -> float:
+def round_kr(value: float) -> float:
     """Round to whole kronor using away-from-zero (standard Swedish rounding)."""
     return float(Decimal(str(value)).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
 
@@ -107,7 +107,7 @@ def find_periods_single(
         if period is not None:
             periods.append(period)
 
-    periods.sort(key=lambda p: (_round_kr(p.total_cost), p.start))
+    periods.sort(key=lambda p: (round_kr(p.total_cost), p.start))
     return periods
 
 
@@ -336,7 +336,7 @@ def optimize_joint(
         if not valid:
             continue
 
-        rounded_cost = _round_kr(total_cost)
+        rounded_cost = round_kr(total_cost)
         earliest_start = min(prices[si].start for si in combo)
         if best_combo is None:
             best_total_cost = total_cost
@@ -344,7 +344,7 @@ def optimize_joint(
             best_earliest_start = earliest_start
             continue
 
-        rounded_best = _round_kr(best_total_cost)
+        rounded_best = round_kr(best_total_cost)
 
         if (rounded_cost, earliest_start) < (rounded_best, best_earliest_start):
             best_total_cost = total_cost

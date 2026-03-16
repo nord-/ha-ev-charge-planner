@@ -81,6 +81,9 @@
                     "vat_percent": "VAT (%)"
                 }
             }
+        },
+        "error": {
+            "invalid_vehicle": "Please select a vehicle to edit."
         }
     }
 }
