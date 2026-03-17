@@ -13,6 +13,7 @@ from .const import (
     CONF_CHARGE_POWER,
     CONF_CHARGE_POWER_ENTITY,
     CONF_DEADLINE_ENTITY,
+    CONF_ENABLED_ENTITY,
     CONF_FEES_ENTITY,
     CONF_FEES_FIXED,
     CONF_PRICE_SENSOR,
@@ -39,6 +40,7 @@ VEHICLE_SCHEMA = vol.Schema(
         vol.Required(CONF_BATTERY_CAPACITY): vol.Coerce(float),
         vol.Optional(CONF_CHARGE_POWER): vol.Coerce(float),
         vol.Optional(CONF_CHARGE_POWER_ENTITY): str,
+        vol.Optional(CONF_ENABLED_ENTITY): str,
         vol.Required(CONF_DEADLINE_ENTITY): str,
         vol.Required(CONF_PRICE_SENSOR): str,
         vol.Optional(CONF_FEES_ENTITY): str,
@@ -191,6 +193,10 @@ class EVChargePlannerOptionsFlow(config_entries.OptionsFlow):
 
         schema = vol.Schema(
             {
+                vol.Optional(
+                    CONF_ENABLED_ENTITY,
+                    description={"suggested_value": current.get(CONF_ENABLED_ENTITY, "")},
+                ): str,
                 vol.Required(
                     CONF_SOC_TARGET_FIXED,
                     default=current.get(CONF_SOC_TARGET_FIXED, DEFAULT_SOC_TARGET),

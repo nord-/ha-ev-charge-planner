@@ -42,6 +42,7 @@ Each vehicle is configured with:
 | SoC target | Entity or fixed value for charge limit (%) |
 | Battery capacity | Battery size in kWh |
 | Charge power | Charging power in kW (entity or fixed) |
+| Charging enabled | `input_boolean` entity — on/off toggle per vehicle (optional, default: on) |
 | Deadline | `input_datetime` entity — car must be ready by this time |
 | Price sensor | NordPool entity_id |
 | Fees | Fees incl. VAT — entity or fixed value (kr/kWh) |

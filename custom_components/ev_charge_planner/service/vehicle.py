@@ -19,6 +19,7 @@ class Vehicle:
     deadline: datetime
     fees_inc_vat: float = 0.0
     vat_multiplier: float = 1.25
+    enabled: bool = True
 
     # Frozen state: when charging is active, ignore parameter changes
     frozen: bool = False
@@ -33,7 +34,7 @@ class Vehicle:
 
     @property
     def needs_charging(self) -> bool:
-        return self.duration_hours > 0
+        return self.enabled and self.duration_hours > 0
 
     def _calc_duration(self) -> float:
         if self.target_soc <= self.current_soc or self.charge_power_kw <= 0:

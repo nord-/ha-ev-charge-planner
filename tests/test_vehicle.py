@@ -36,3 +36,32 @@ def test_duration_byd_dolphin():
     # hours = 22.45 / 7 = 3.207...
     # ceil(3.207 * 4) / 4 = ceil(12.828) / 4 = 13/4 = 3.25
     assert v.duration_hours == 3.25
+
+
+def test_enabled_false_means_no_charging():
+    """Vehicle with enabled=False should not need charging even with SoC gap."""
+    v = Vehicle(
+        name="Tesla",
+        battery_capacity_kwh=75,
+        charge_power_kw=11,
+        current_soc=50,
+        target_soc=80,
+        deadline=datetime(2024, 1, 1, 7, 0),
+        enabled=False,
+    )
+    assert v.duration_hours > 0  # duration is still calculated
+    assert not v.needs_charging  # but needs_charging is False
+
+
+def test_enabled_default_is_true():
+    """Vehicle without explicit enabled should default to True."""
+    v = Vehicle(
+        name="Tesla",
+        battery_capacity_kwh=75,
+        charge_power_kw=11,
+        current_soc=50,
+        target_soc=80,
+        deadline=datetime(2024, 1, 1, 7, 0),
+    )
+    assert v.enabled
+    assert v.needs_charging
