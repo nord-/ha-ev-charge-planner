@@ -38,3 +38,8 @@ class VehicleResult:
     all_periods: list[ChargePeriod] = field(default_factory=list)
     duration_hours: float = 0.0
     needs_charging: bool = False
+    current_soc: float | None = None
+    target_soc: float | None = None
+    charge_power_kw: float | None = None
+    enabled: bool = True
+    deadline: datetime | None = None

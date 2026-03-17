@@ -136,7 +136,18 @@ class Hub:
         vehicles = self._build_vehicles(now)
 
         # Run joint optimization
-        self._results = optimize_joint(vehicles, self._prices, now)
+        self._results = optimize_joint(vehicles, self._prices, now, currency=self.currency)
+
+        # Attach current vehicle state to results for sensor attributes
+        for v in vehicles:
+            if v.name in self._results:
+                r = self._results[v.name]
+                r.current_soc = v.current_soc
+                r.target_soc = v.target_soc
+                r.charge_power_kw = v.charge_power_kw
+                r.enabled = v.enabled
+                r.deadline = v.deadline
+
         self._last_update = now_mono
 
         # Manage freeze state
