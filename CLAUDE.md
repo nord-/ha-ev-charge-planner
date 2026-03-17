@@ -45,7 +45,7 @@ Central coordinator per config entry. Listens to state changes on price sensor +
 
 ### Spot price layer (`service/spotprice/`)
 
-`ISpotPrice` protocol (pure fetcher — returns prices, caller stores them) → `NordPoolAdapter` implementation. Parses `raw_today`/`raw_tomorrow` attributes (list of `{start, end, value}` dicts) into `PriceSlot` objects. Hub calls `async_fetch()` and owns the price list.
+`ISpotPrice` protocol (pure fetcher — returns prices + currency, caller stores them) → `NordPoolAdapter` implementation. Parses `raw_today`/`raw_tomorrow` attributes (list of `{start, end, value}` dicts) into `PriceSlot` objects and reads `currency` attribute (defaults to "SEK"). Hub calls `async_fetch()` and owns the price list. Currency propagates: NordPool state → DTO → Adapter → Hub → Sensor display (SEK/NOK/DKK → "kr", EUR → "€", other → raw code).
 
 ### State reader (`service/state_reader.py`)
 

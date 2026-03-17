@@ -18,10 +18,15 @@ class NordPoolAdapter(ISpotPrice):
         self._hass = hass
         self._entity_id = entity_id
         self._test = test
+        self._currency: str = "SEK"
 
     @property
     def entity(self) -> str | None:
         return self._entity_id
+
+    @property
+    def currency(self) -> str:
+        return self._currency
 
     async def async_fetch(self) -> list[PriceSlot] | None:
         if self._test or not self._hass or not self._entity_id:
@@ -34,5 +39,6 @@ class NordPoolAdapter(ISpotPrice):
 
         dto = NordPoolDTO()
         dto.set_from_state(state)
+        self._currency = dto.currency
         prices = dto.all_prices
         return prices if prices else None

@@ -10,14 +10,19 @@ from ..models import PriceSlot
 class ISpotPrice(ABC):
     """Interface for fetching spot prices.
 
-    Pure fetcher — returns prices without holding state.
-    The caller (Hub) is responsible for storing the result.
+    Implementations may hold state (e.g. last-known currency) but price
+    storage is the caller's (Hub's) responsibility.
     """
 
     @property
     @abstractmethod
     def entity(self) -> str | None:
         """Entity ID being tracked (for state-change listeners)."""
+
+    @property
+    @abstractmethod
+    def currency(self) -> str:
+        """Currency code from the spot price source (e.g. 'SEK', 'EUR')."""
 
     @abstractmethod
     async def async_fetch(self) -> list[PriceSlot] | None:

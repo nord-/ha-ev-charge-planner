@@ -22,7 +22,7 @@ _MAX_JOINT_COMBINATIONS = 100_000
 
 
 def round_kr(value: float) -> float:
-    """Round to whole kronor using away-from-zero (standard Swedish rounding)."""
+    """Round to whole currency units using away-from-zero rounding (e.g. 12.50 → 13)."""
     return float(Decimal(str(value)).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
 
 

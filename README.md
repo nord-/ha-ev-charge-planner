@@ -8,6 +8,7 @@ A Home Assistant custom integration that calculates optimal EV charging schedule
 - **Joint optimization** — when multiple vehicles share a charger, solves all schedules simultaneously to minimize total cost (overlap = halved charge rate)
 - **Dynamic duration** — recalculates charging time from current SoC, target SoC, battery capacity, and charge power
 - **Freeze on active charging** — once a charging period starts, the schedule is locked until it ends
+- **Automatic currency** — reads currency from the NordPool sensor (SEK, NOK, DKK → kr; EUR → €)
 
 ## How it works
 
