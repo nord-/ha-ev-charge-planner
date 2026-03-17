@@ -1,25 +1,37 @@
 name: Release
 
 on:
-  release:
-    types: [published]
+  push:
+    branches: [master]
+    paths:
+      - 'custom_components/ev_charge_planner/manifest.json'
 
 permissions:
   contents: write
 
 jobs:
-  build:
+  release:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Zip and upload
+      - name: Read version from manifest
+        id: version
+        run: |
+          VERSION=$(python3 -c "import json; print(json.load(open('custom_components/ev_charge_planner/manifest.json'))['version'])")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Zip component
         run: |
           cd custom_components/ev_charge_planner/
           zip ../../ev_charge_planner.zip -r ./ -x '*.pyc' -x '__pycache__/*'
 
-      - uses: softprops/action-gh-release@v2
+      - name: Create release and upload zip
+        uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: ${{ steps.version.outputs.tag }}
           files: ev_charge_planner.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
