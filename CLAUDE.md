@@ -83,16 +83,18 @@ Central coordinator per config entry. Listens to state changes on price sensor +
 
 ## Releases
 
-`ev_charge_planner.zip` is **automatically** created and attached by `.github/workflows/release.yml` when a release is published. Just create the release on GitHub — no manual zip needed.
+Releases are **fully automated** via `.github/workflows/release.yml`. To cut a new release:
 
-If you need to create a zip manually (files must be at the **root**, no parent directory):
-```powershell
-Push-Location custom_components/ev_charge_planner
-Compress-Archive -Path * -DestinationPath ../../ev_charge_planner.zip -Force
-Pop-Location
-```
+1. Bump `version` in `custom_components/ev_charge_planner/manifest.json`
+2. Add a section to `CHANGELOG.md`:
+   ```markdown
+   ## [X.Y.Z] - YYYY-MM-DD
+   ### Added / Changed / Fixed
+   - ...
+   ```
+3. Push to `master`
 
-Tag the release on the master branch commit SHA (not `origin/master` ref).
+The workflow detects the `manifest.json` change, reads the matching section from `CHANGELOG.md`, creates a GitHub release with that text, and attaches `ev_charge_planner.zip` (files at root, no parent directory).
 
 ## User Preferences
 
