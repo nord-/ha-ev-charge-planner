@@ -147,13 +147,17 @@ class EVChargePlannerOptionsFlow(config_entries.OptionsFlow):
         vehicles = self._config_entry.data.get(CONF_VEHICLES, [])
         vehicle_names = {str(i): vc[CONF_VEHICLE_NAME] for i, vc in enumerate(vehicles)}
 
-        default_index = "0" if len(vehicles) == 1 else None
+        vehicle_index_key = (
+            vol.Optional("vehicle_index", default="0")
+            if len(vehicles) == 1
+            else vol.Optional("vehicle_index")
+        )
         schema = vol.Schema(
             {
                 vol.Required("action", default="edit"): vol.In(
                     {"edit": "Edit vehicle", "add": "Add vehicle"}
                 ),
-                vol.Optional("vehicle_index", default=default_index): vol.In(vehicle_names),
+                vehicle_index_key: vol.In(vehicle_names),
             }
         )
         return self.async_show_form(step_id="init", data_schema=schema, errors=errors or {})
