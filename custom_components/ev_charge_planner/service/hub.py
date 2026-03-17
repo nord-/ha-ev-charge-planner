@@ -287,6 +287,10 @@ class Hub:
         except (ValueError, IndexError):
             return now + timedelta(hours=8)
 
+    @property
+    def currency(self) -> str:
+        return self.spotprice.currency
+
     def get_result(self, vehicle_name: str) -> VehicleResult | None:
         return self._results.get(vehicle_name)
 

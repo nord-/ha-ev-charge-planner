@@ -19,6 +19,11 @@ class ISpotPrice(ABC):
     def entity(self) -> str | None:
         """Entity ID being tracked (for state-change listeners)."""
 
+    @property
+    @abstractmethod
+    def currency(self) -> str:
+        """Currency code from the spot price source (e.g. 'SEK', 'EUR')."""
+
     @abstractmethod
     async def async_fetch(self) -> list[PriceSlot] | None:
         """Fetch current prices. Returns None if unavailable."""

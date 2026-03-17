@@ -1,8 +1,10 @@
-"""Tests for NordPool DTO parsing."""
+"""Tests for NordPool DTO parsing and currency propagation."""
 
 from datetime import datetime
 
+from custom_components.ev_charge_planner.sensor import ChargePlannerSensor
 from custom_components.ev_charge_planner.service.spotprice.dto import NordPoolDTO
+from custom_components.ev_charge_planner.service.spotprice.nordpool import NordPoolAdapter
 
 
 class MockState:
@@ -118,3 +120,72 @@ class TestNordPoolDTO:
         assert len(all_p) == 6
         assert all_p[0].value == 1.0
         assert all_p[3].value == 2.0
+
+    def test_currency_from_attribute(self):
+        """Currency is read from the NordPool state attribute."""
+        dto = NordPoolDTO()
+        dto.set_from_state(
+            MockState(
+                {
+                    "raw_today": [{"start": datetime(2024, 1, 1, 0), "value": 1.0}],
+                    "raw_tomorrow": [],
+                    "currency": "EUR",
+                }
+            )
+        )
+        assert dto.currency == "EUR"
+
+    def test_currency_defaults_to_sek(self):
+        """Missing currency attribute defaults to SEK."""
+        dto = NordPoolDTO()
+        dto.set_from_state(
+            MockState(
+                {
+                    "raw_today": [{"start": datetime(2024, 1, 1, 0), "value": 1.0}],
+                    "raw_tomorrow": [],
+                }
+            )
+        )
+        assert dto.currency == "SEK"
+
+
+class TestNordPoolAdapterCurrency:
+    def test_default_currency(self):
+        """Adapter defaults to SEK before first fetch."""
+        adapter = NordPoolAdapter(None, test=True)
+        assert adapter.currency == "SEK"
+
+
+class FakeHub:
+    def __init__(self, currency):
+        self._currency = currency
+
+    @property
+    def currency(self):
+        return self._currency
+
+
+class TestCurrencyUnit:
+    """Verify currency code → display unit mapping in sensor."""
+
+    def _make_sensor(self, currency: str) -> ChargePlannerSensor:
+        hub = FakeHub(currency)
+        return ChargePlannerSensor(hub, "Test", "entry_1")
+
+    def test_sek_gives_kr(self):
+        assert self._make_sensor("SEK")._currency_unit == "kr"
+
+    def test_nok_gives_kr(self):
+        assert self._make_sensor("NOK")._currency_unit == "kr"
+
+    def test_dkk_gives_kr(self):
+        assert self._make_sensor("DKK")._currency_unit == "kr"
+
+    def test_eur_gives_euro_sign(self):
+        assert self._make_sensor("EUR")._currency_unit == "\u20ac"
+
+    def test_unknown_currency_gives_code(self):
+        assert self._make_sensor("USD")._currency_unit == "USD"
+
+    def test_lowercase_currency(self):
+        assert self._make_sensor("sek")._currency_unit == "kr"

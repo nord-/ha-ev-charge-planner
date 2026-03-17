@@ -123,6 +123,10 @@ class StubSpotPrice(ISpotPrice):
     def entity(self):
         return None
 
+    @property
+    def currency(self):
+        return "SEK"
+
     async def async_fetch(self):
         return self._prices
 

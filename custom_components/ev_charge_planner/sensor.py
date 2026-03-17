@@ -83,11 +83,22 @@ class ChargePlannerSensor(SensorEntity):
             "All sequences": self._all_sequences,
         }
 
+    @property
+    def _currency_unit(self) -> str:
+        """Short display unit from currency code."""
+        code = self._hub.currency.upper()
+        if code in ("SEK", "NOK", "DKK"):
+            return "kr"
+        if code == "EUR":
+            return "\u20ac"
+        return code
+
     def _make_sequences(self, result) -> dict[str, str]:
         """Build All sequences dict matching peaqnext format."""
         if not result.all_periods:
             return {}
 
+        unit = self._currency_unit
         now = self._hub.dt_model.now()
         sequences: dict[str, str] = {}
         for p in result.all_periods:
@@ -98,7 +109,7 @@ class ChargePlannerSensor(SensorEntity):
             if p.end.date() > now.date():
                 t2 += "\u207a\u00b9"
             prefix = ">> " if p.start.hour == now.hour and p.start.date() == now.date() else ""
-            sequences[f"{prefix}{t1}-{t2}"] = f"{p.total_cost:.1f} kr"
+            sequences[f"{prefix}{t1}-{t2}"] = f"{p.total_cost:.1f} {unit}"
         return sequences
 
     def _format_periods(self, result) -> str:
@@ -106,6 +117,7 @@ class ChargePlannerSensor(SensorEntity):
         if not result.all_periods:
             return ""
 
+        unit = self._currency_unit
         now = self._hub.dt_model.now()
         lines = ["| Period | Kostnad |", "|---|---|"]
         for p in result.all_periods:
@@ -115,5 +127,5 @@ class ChargePlannerSensor(SensorEntity):
             t2 = p.end.strftime("%H:%M")
             if p.end.date() > now.date():
                 t2 += "\u207a\u00b9"  # ⁺¹
-            lines.append(f"| {t1}\u2013{t2} | {round_kr(p.total_cost):.0f} kr |")
+            lines.append(f"| {t1}\u2013{t2} | {round_kr(p.total_cost):.0f} {unit} |")
         return "\n".join(lines)
