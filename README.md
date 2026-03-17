@@ -11,7 +11,10 @@ A Home Assistant custom integration that calculates optimal EV charging schedule
 
 ## How it works
 
-Each vehicle gets a `sensor` with `device_class: timestamp` showing the optimal start time. The attribute `periods_list` contains a markdown table of all candidate windows sorted by cost.
+Each vehicle gets a `sensor` with `device_class: timestamp` showing the optimal start time. Attributes:
+
+- `periods_list_md` — markdown table of all candidate windows sorted by cost
+- `All sequences` — dict of all candidate windows (compatible with peaqnext format)
 
 The integration does **not** control the charger — it only calculates when to start. Use HA automations to trigger charging based on the sensor state.
 
@@ -39,9 +42,15 @@ Each vehicle is configured with:
 | SoC target | Entity or fixed value for charge limit (%) |
 | Battery capacity | Battery size in kWh |
 | Charge power | Charging power in kW (entity or fixed) |
+| Charging enabled | `input_boolean` entity — on/off toggle per vehicle (optional, default: on) |
 | Deadline | `input_datetime` entity — car must be ready by this time |
 | Price sensor | NordPool entity_id |
-| Grid fees ex VAT | Grid fees excluding VAT (kr/kWh) |
+| Fees | Fees incl. VAT — entity or fixed value (kr/kWh) |
+| VAT % | VAT percentage applied to spot price |
+
+### Adding a vehicle after setup
+
+Go to **Settings → Integrations → EV Charge Planner → Configure**. Select **Add vehicle** and fill in the vehicle details. The integration reloads automatically.
 
 ## Requirements
 

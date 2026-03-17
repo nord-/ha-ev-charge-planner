@@ -13,6 +13,7 @@ from .const import (
     CONF_CHARGE_POWER,
     CONF_CHARGE_POWER_ENTITY,
     CONF_DEADLINE_ENTITY,
+    CONF_ENABLED_ENTITY,
     CONF_FEES_ENTITY,
     CONF_FEES_FIXED,
     CONF_PRICE_SENSOR,
@@ -39,6 +40,7 @@ VEHICLE_SCHEMA = vol.Schema(
         vol.Required(CONF_BATTERY_CAPACITY): vol.Coerce(float),
         vol.Optional(CONF_CHARGE_POWER): vol.Coerce(float),
         vol.Optional(CONF_CHARGE_POWER_ENTITY): str,
+        vol.Optional(CONF_ENABLED_ENTITY): str,
         vol.Required(CONF_DEADLINE_ENTITY): str,
         vol.Required(CONF_PRICE_SENSOR): str,
         vol.Optional(CONF_FEES_ENTITY): str,
@@ -119,21 +121,59 @@ class EVChargePlannerOptionsFlow(config_entries.OptionsFlow):
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
-        """Show list of vehicles to edit."""
-        vehicles = self._config_entry.data.get(CONF_VEHICLES, [])
-
-        if len(vehicles) == 1:
-            self._vehicle_index = 0
-            return await self.async_step_edit_vehicle(user_input)
-
+        """Choose to edit a vehicle or add a new one."""
         if user_input is not None:
-            self._vehicle_index = int(user_input["vehicle_index"])
+            action = user_input.get("action")
+            if action == "add":
+                return await self.async_step_add_vehicle()
+            # edit — pick vehicle
+            vehicles = self._config_entry.data.get(CONF_VEHICLES, [])
+            if not vehicles:
+                return await self.async_step_add_vehicle()
+            vehicle_index = user_input.get("vehicle_index")
+            if vehicle_index is None or int(vehicle_index) >= len(vehicles):
+                return await self._show_init_form(
+                    errors={"vehicle_index": "invalid_vehicle"},
+                )
+            self._vehicle_index = int(vehicle_index)
             return await self.async_step_edit_vehicle()
 
+        return await self._show_init_form()
+
+    async def _show_init_form(
+        self, errors: dict[str, str] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Build and show the init form."""
+        vehicles = self._config_entry.data.get(CONF_VEHICLES, [])
         vehicle_names = {str(i): vc[CONF_VEHICLE_NAME] for i, vc in enumerate(vehicles)}
+
+        default_index = "0" if len(vehicles) == 1 else None
+        schema = vol.Schema(
+            {
+                vol.Required("action", default="edit"): vol.In(
+                    {"edit": "Edit vehicle", "add": "Add vehicle"}
+                ),
+                vol.Optional("vehicle_index", default=default_index): vol.In(vehicle_names),
+            }
+        )
+        return self.async_show_form(step_id="init", data_schema=schema, errors=errors or {})
+
+    async def async_step_add_vehicle(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Add a new vehicle via options flow."""
+        if user_input is not None:
+            vehicles = list(self._config_entry.data.get(CONF_VEHICLES, []))
+            vehicles.append(user_input)
+            self.hass.config_entries.async_update_entry(
+                self._config_entry,
+                data={**self._config_entry.data, CONF_VEHICLES: vehicles},
+            )
+            return self.async_create_entry(data={})
+
         return self.async_show_form(
-            step_id="init",
-            data_schema=vol.Schema({vol.Required("vehicle_index"): vol.In(vehicle_names)}),
+            step_id="add_vehicle",
+            data_schema=VEHICLE_SCHEMA,
         )
 
     async def async_step_edit_vehicle(
@@ -153,6 +193,10 @@ class EVChargePlannerOptionsFlow(config_entries.OptionsFlow):
 
         schema = vol.Schema(
             {
+                vol.Optional(
+                    CONF_ENABLED_ENTITY,
+                    description={"suggested_value": current.get(CONF_ENABLED_ENTITY, "")},
+                ): str,
                 vol.Required(
                     CONF_SOC_TARGET_FIXED,
                     default=current.get(CONF_SOC_TARGET_FIXED, DEFAULT_SOC_TARGET),

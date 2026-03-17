@@ -8,6 +8,7 @@ from custom_components.ev_charge_planner.const import (
     CONF_BATTERY_CAPACITY,
     CONF_CHARGE_POWER,
     CONF_DEADLINE_ENTITY,
+    CONF_ENABLED_ENTITY,
     CONF_FEES_ENTITY,
     CONF_FEES_FIXED,
     CONF_PRICE_SENSOR,
@@ -260,6 +261,44 @@ async def test_fees_entity_unavailable_falls_back():
     hub.dt_model.set_now(datetime(2024, 1, 1, 0, 0))
     vehicles = hub._build_vehicles(hub.dt_model.now())
     assert vehicles[0].fees_inc_vat == 0.0
+
+
+@pytest.mark.asyncio
+async def test_enabled_entity_off_skips_charging():
+    """Vehicle with enabled_entity=off should not need charging."""
+    config = make_vehicle_config()
+    config[CONF_ENABLED_ENTITY] = "input_boolean.charge_tesla"
+    reader = FakeStateReader({"input_boolean.charge_tesla": "off"})
+    hub = Hub(None, [config], test=True)
+    hub._state_reader = reader
+    hub.dt_model.set_now(datetime(2024, 1, 1, 0, 0))
+    vehicles = hub._build_vehicles(hub.dt_model.now())
+    assert not vehicles[0].enabled
+    assert not vehicles[0].needs_charging
+
+
+@pytest.mark.asyncio
+async def test_enabled_entity_on_allows_charging():
+    """Vehicle with enabled_entity=on should charge normally."""
+    config = make_vehicle_config()
+    config[CONF_ENABLED_ENTITY] = "input_boolean.charge_tesla"
+    reader = FakeStateReader({"input_boolean.charge_tesla": "on"})
+    hub = Hub(None, [config], test=True)
+    hub._state_reader = reader
+    hub.dt_model.set_now(datetime(2024, 1, 1, 0, 0))
+    vehicles = hub._build_vehicles(hub.dt_model.now())
+    assert vehicles[0].enabled
+    assert vehicles[0].needs_charging
+
+
+@pytest.mark.asyncio
+async def test_enabled_entity_missing_defaults_to_true():
+    """No enabled_entity configured should default to enabled."""
+    config = make_vehicle_config()
+    hub = Hub(None, [config], test=True)
+    hub.dt_model.set_now(datetime(2024, 1, 1, 0, 0))
+    vehicles = hub._build_vehicles(hub.dt_model.now())
+    assert vehicles[0].enabled
 
 
 @pytest.mark.asyncio

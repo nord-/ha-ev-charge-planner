@@ -14,6 +14,7 @@ from ..const import (
     CONF_CHARGE_POWER,
     CONF_CHARGE_POWER_ENTITY,
     CONF_DEADLINE_ENTITY,
+    CONF_ENABLED_ENTITY,
     CONF_FEES_ENTITY,
     CONF_FEES_FIXED,
     CONF_GRID_FEES_EX_VAT,
@@ -97,6 +98,7 @@ class Hub:
                 CONF_CHARGE_POWER_ENTITY,
                 CONF_DEADLINE_ENTITY,
                 CONF_FEES_ENTITY,
+                CONF_ENABLED_ENTITY,
             ):
                 entity = vc.get(key)
                 if entity:
@@ -190,6 +192,10 @@ class Hub:
             else:
                 fees_inc_vat = DEFAULT_FEES
 
+            # Enabled: input_boolean entity (default on if not configured)
+            enabled_entity = vc.get(CONF_ENABLED_ENTITY)
+            enabled = self._get_state_bool(enabled_entity, True)
+
             v = Vehicle(
                 name=name,
                 battery_capacity_kwh=float(vc[CONF_BATTERY_CAPACITY]),
@@ -199,6 +205,7 @@ class Hub:
                 deadline=deadline,
                 fees_inc_vat=fees_inc_vat,
                 vat_multiplier=vat_multiplier,
+                enabled=enabled,
             )
 
             # Restore persisted freeze state (only if not expired)
@@ -247,6 +254,14 @@ class Hub:
             return float(value)
         except (ValueError, TypeError):
             return default
+
+    def _get_state_bool(self, entity_id: str | None, default: bool) -> bool:
+        if not entity_id or self._state_reader is None:
+            return default
+        value = self._state_reader.get_state(entity_id)
+        if value is None:
+            return default
+        return value.lower() in ("on", "true", "1")
 
     def _get_deadline(self, entity_id: str | None, now: datetime) -> datetime:
         """Parse deadline from input_datetime entity."""

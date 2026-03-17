@@ -10,6 +10,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import CONF_VEHICLE_NAME, CONF_VEHICLES, DOMAIN, HUB
+from .service.optimizer import round_kr
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -40,7 +41,8 @@ class ChargePlannerSensor(SensorEntity):
         self._vehicle_name = vehicle_name
         self._attr_name = f"{vehicle_name} charge period"
         self._attr_unique_id = f"ev_charge_planner_{entry_id}_{vehicle_name}"
-        self._periods_list: str = ""
+        self._periods_list_md: str = ""
+        self._all_sequences: dict[str, str] = {}
 
     async def async_added_to_hass(self) -> None:
         """Register callback with hub when entity is added."""
@@ -66,17 +68,38 @@ class ChargePlannerSensor(SensorEntity):
 
         if result is None or not result.needs_charging or result.best_period is None:
             self._attr_native_value = None
-            self._periods_list = ""
+            self._periods_list_md = ""
+            self._all_sequences = {}
             return
 
         self._attr_native_value = result.best_period.start
-        self._periods_list = self._format_periods(result)
+        self._periods_list_md = self._format_periods(result)
+        self._all_sequences = self._make_sequences(result)
 
     @property
     def extra_state_attributes(self) -> dict:
         return {
-            "periods_list": self._periods_list,
+            "periods_list_md": self._periods_list_md,
+            "All sequences": self._all_sequences,
         }
+
+    def _make_sequences(self, result) -> dict[str, str]:
+        """Build All sequences dict matching peaqnext format."""
+        if not result.all_periods:
+            return {}
+
+        now = self._hub.dt_model.now()
+        sequences: dict[str, str] = {}
+        for p in result.all_periods:
+            t1 = p.start.strftime("%H:%M")
+            if p.start.date() > now.date():
+                t1 += "\u207a\u00b9"
+            t2 = p.end.strftime("%H:%M")
+            if p.end.date() > now.date():
+                t2 += "\u207a\u00b9"
+            prefix = ">> " if p.start.hour == now.hour and p.start.date() == now.date() else ""
+            sequences[f"{prefix}{t1}-{t2}"] = f"{p.total_cost:.1f} kr"
+        return sequences
 
     def _format_periods(self, result) -> str:
         """Format all periods as markdown table."""
@@ -92,5 +115,5 @@ class ChargePlannerSensor(SensorEntity):
             t2 = p.end.strftime("%H:%M")
             if p.end.date() > now.date():
                 t2 += "\u207a\u00b9"  # ⁺¹
-            lines.append(f"| {t1}\u2013{t2} | {p.total_cost:.0f} kr |")
+            lines.append(f"| {t1}\u2013{t2} | {round_kr(p.total_cost):.0f} kr |")
         return "\n".join(lines)

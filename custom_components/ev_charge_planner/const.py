@@ -13,6 +13,7 @@ CONF_SOC_TARGET_FIXED = "soc_target_fixed"
 CONF_BATTERY_CAPACITY = "battery_capacity"
 CONF_CHARGE_POWER = "charge_power"
 CONF_CHARGE_POWER_ENTITY = "charge_power_entity"
+CONF_ENABLED_ENTITY = "enabled_entity"
 CONF_DEADLINE_ENTITY = "deadline_entity"
 CONF_PRICE_SENSOR = "price_sensor"
 CONF_GRID_FEES_EX_VAT = "grid_fees_ex_vat"  # legacy

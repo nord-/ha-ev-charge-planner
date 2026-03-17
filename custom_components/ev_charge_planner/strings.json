@@ -11,6 +11,7 @@
                     "battery_capacity": "Battery capacity (kWh)",
                     "charge_power": "Charge power (kW, fixed)",
                     "charge_power_entity": "Charge power sensor (entity_id, optional)",
+                    "enabled_entity": "Charging enabled (input_boolean entity_id, optional)",
                     "deadline_entity": "Deadline (input_datetime entity_id)",
                     "price_sensor": "Price sensor (NordPool entity_id)",
                     "fees_entity": "Fees sensor incl. VAT (entity_id, optional)",
@@ -28,6 +29,7 @@
                     "battery_capacity": "Battery capacity (kWh)",
                     "charge_power": "Charge power (kW, fixed)",
                     "charge_power_entity": "Charge power sensor (entity_id, optional)",
+                    "enabled_entity": "Charging enabled (input_boolean entity_id, optional)",
                     "deadline_entity": "Deadline (input_datetime entity_id)",
                     "price_sensor": "Price sensor (NordPool entity_id)",
                     "fees_entity": "Fees sensor incl. VAT (entity_id, optional)",
@@ -46,14 +48,34 @@
     "options": {
         "step": {
             "init": {
-                "title": "Select vehicle to edit",
+                "title": "Vehicle options",
                 "data": {
+                    "action": "Action",
                     "vehicle_index": "Vehicle"
+                }
+            },
+            "add_vehicle": {
+                "title": "Add vehicle",
+                "data": {
+                    "name": "Vehicle name",
+                    "soc_sensor": "Current SoC sensor (entity_id)",
+                    "soc_target_entity": "Target SoC sensor (entity_id, optional)",
+                    "soc_target_fixed": "Target SoC (fixed %, if no entity)",
+                    "battery_capacity": "Battery capacity (kWh)",
+                    "charge_power": "Charge power (kW, fixed)",
+                    "charge_power_entity": "Charge power sensor (entity_id, optional)",
+                    "enabled_entity": "Charging enabled (input_boolean entity_id, optional)",
+                    "deadline_entity": "Deadline (input_datetime entity_id)",
+                    "price_sensor": "Price sensor (NordPool entity_id)",
+                    "fees_entity": "Fees sensor incl. VAT (entity_id, optional)",
+                    "fees_fixed": "Fees incl. VAT (kr/kWh, if no entity)",
+                    "vat_percent": "VAT (%)"
                 }
             },
             "edit_vehicle": {
                 "title": "Edit {vehicle_name}",
                 "data": {
+                    "enabled_entity": "Charging enabled (input_boolean entity_id)",
                     "soc_target_entity": "Target SoC sensor (entity_id)",
                     "soc_target_fixed": "Target SoC (fixed %)",
                     "charge_power": "Charge power (kW, fixed)",
@@ -63,6 +85,9 @@
                     "vat_percent": "VAT (%)"
                 }
             }
+        },
+        "error": {
+            "invalid_vehicle": "Please select a vehicle to edit."
         }
     }
 }

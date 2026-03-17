@@ -33,6 +33,7 @@ The integration follows a layered design: **HA integration layer** → **Hub coo
 - `find_periods_single()` — evaluates all possible charging windows for one vehicle, considering overlap with other vehicles' windows (effective rate × 0.5 on shared charger)
 - `optimize_joint()` — enumerates all combinations of start times across vehicles to find the global minimum cost. Falls back to sequential optimization when combination count exceeds 100k threshold.
 - `_cost_at_start()` — computes cost for a specific start slot, used by joint optimization to evaluate each combination
+- `round_kr()` — away-from-zero rounding to whole kronor, used for sorting and combo selection (12.50 → 13, not banker's rounding)
 
 **Duration formula:** `ceil((target_soc - current_soc) / 100 × battery_kWh / charge_power_kW × 4) / 4`
 
@@ -40,7 +41,7 @@ The integration follows a layered design: **HA integration layer** → **Hub coo
 
 ### Hub (`service/hub.py`)
 
-Central coordinator per config entry. Listens to state changes on price sensor + all vehicle entities (SoC, target, deadline, power, fees). Throttles updates to 60s. Uses injectable `StateReader` protocol for HA state access. Manages **freeze state** via `_freeze_state` dict storing `(frozen_duration, original_period_end)` tuples — once a vehicle's charging period has started, its parameters are locked until the period ends. Expired freeze entries are pruned in `_build_vehicles()`. Deadline rolls to next day if time has already passed. Fees read from entity (inc VAT) or fixed value, with legacy `grid_fees_ex_vat` fallback (auto-converted). VAT computed from configurable percentage.
+Central coordinator per config entry. Listens to state changes on price sensor + all vehicle entities (SoC, target, deadline, power, fees, enabled). Throttles updates to 60s. Uses injectable `StateReader` protocol for HA state access. Manages **freeze state** via `_freeze_state` dict storing `(frozen_duration, original_period_end)` tuples — once a vehicle's charging period has started, its parameters are locked until the period ends. Expired freeze entries are pruned in `_build_vehicles()`. Deadline rolls to next day if time has already passed. Fees read from entity (inc VAT) or fixed value, with legacy `grid_fees_ex_vat` fallback (auto-converted). VAT computed from configurable percentage. Each vehicle has an optional `enabled_entity` (`input_boolean`) — when off, the vehicle is excluded from optimization (defaults to enabled if not configured).
 
 ### Spot price layer (`service/spotprice/`)
 
@@ -61,6 +62,8 @@ Central coordinator per config entry. Listens to state changes on price sensor +
 - **Joint optimization over sequential**: Templates calculated car 1 then car 2 referencing each other. This integration solves all vehicles simultaneously.
 - **Dynamic duration**: Unlike peaqnext (static duration/consumption), duration is recalculated every update from current SoC, target SoC, battery capacity, and charge power.
 - **Freeze on active charging**: "Lagt kort ligger" — once the optimal start time has passed and charging is underway, the result is frozen until the period ends.
+- **Cost rounding to whole kronor**: Periods are sorted/compared by total cost rounded to whole kronor (away-from-zero). At same rounded cost, earliest start wins — no point delaying for a few öre.
+- **Per-vehicle charging toggle**: Optional `input_boolean` entity per vehicle. When off, the vehicle is excluded from optimization entirely.
 
 ## User's HA Setup (Context)
 
