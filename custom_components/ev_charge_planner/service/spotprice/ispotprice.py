@@ -10,8 +10,8 @@ from ..models import PriceSlot
 class ISpotPrice(ABC):
     """Interface for fetching spot prices.
 
-    Pure fetcher — returns prices without holding state.
-    The caller (Hub) is responsible for storing the result.
+    Implementations may hold state (e.g. last-known currency) but price
+    storage is the caller's (Hub's) responsibility.
     """
 
     @property
