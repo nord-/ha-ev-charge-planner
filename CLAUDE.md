@@ -81,6 +81,17 @@ Central coordinator per config entry. Listens to state changes on price sensor +
 - English in code/comments, Swedish in UI labels
 - HACS compatible (`hacs.json` at repo root)
 
+## Releases
+
+When creating a GitHub release:
+1. Attach `ev_charge_planner.zip` — files must be at the **root** of the zip (no parent directory). Create from inside `custom_components/ev_charge_planner/`:
+   ```powershell
+   Push-Location custom_components/ev_charge_planner
+   Compress-Archive -Path * -DestinationPath ../../ev_charge_planner.zip -Force
+   Pop-Location
+   ```
+2. Tag the release on the master branch commit SHA (not `origin/master` ref).
+
 ## User Preferences
 
 - No "Co-Authored-By: Claude" in commits
