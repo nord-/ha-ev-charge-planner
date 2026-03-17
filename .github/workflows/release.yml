@@ -1,0 +1,25 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Zip and upload
+        run: |
+          cd custom_components/ev_charge_planner/
+          zip ../../ev_charge_planner.zip -r ./ -x '*.pyc' -x '__pycache__/*'
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: ev_charge_planner.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
