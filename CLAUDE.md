@@ -83,14 +83,16 @@ Central coordinator per config entry. Listens to state changes on price sensor +
 
 ## Releases
 
-When creating a GitHub release:
-1. Attach `ev_charge_planner.zip` — files must be at the **root** of the zip (no parent directory). Create from inside `custom_components/ev_charge_planner/`:
-   ```powershell
-   Push-Location custom_components/ev_charge_planner
-   Compress-Archive -Path * -DestinationPath ../../ev_charge_planner.zip -Force
-   Pop-Location
-   ```
-2. Tag the release on the master branch commit SHA (not `origin/master` ref).
+`ev_charge_planner.zip` is **automatically** created and attached by `.github/workflows/release.yml` when a release is published. Just create the release on GitHub — no manual zip needed.
+
+If you need to create a zip manually (files must be at the **root**, no parent directory):
+```powershell
+Push-Location custom_components/ev_charge_planner
+Compress-Archive -Path * -DestinationPath ../../ev_charge_planner.zip -Force
+Pop-Location
+```
+
+Tag the release on the master branch commit SHA (not `origin/master` ref).
 
 ## User Preferences
 
