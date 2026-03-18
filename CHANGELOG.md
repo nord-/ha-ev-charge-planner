@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.4.1] - 2026-03-18
+
+### Added
+- Currency-aware rounding precision: SEK/NOK/DKK rounds to 1 decimal, EUR to 2 decimals — for both sorting and display
+- Vehicle state sensor attributes: `current_soc`, `target_soc`, `charge_power_kw`, `charging_enabled`, `deadline`
+- Debug price diagnostics: `_debug_price_count`, `_debug_price_first`, `_debug_price_last` sensor attributes
+
+### Fixed
+- Price fetching no longer throttled — only optimization is, preventing stale price data when NordPool updates during throttle window
+
 ## [0.4.0] - 2026-03-17
 
 ### Added
