@@ -91,6 +91,12 @@ class ChargePlannerSensor(SensorEntity):
             attrs["deadline"] = (
                 result.deadline.strftime("%H:%M") if result.deadline is not None else None
             )
+        # Diagnostics: price data range and count
+        prices = self._hub._prices
+        if prices:
+            attrs["_debug_price_count"] = len(prices)
+            attrs["_debug_price_first"] = prices[0].start.isoformat()
+            attrs["_debug_price_last"] = prices[-1].start.isoformat()
         return attrs
 
     @property
