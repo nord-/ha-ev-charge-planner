@@ -12,6 +12,7 @@ from custom_components.ev_charge_planner.service.optimizer import (
     derive_entry_hours,
     find_periods_single,
     optimize_joint,
+    round_kr,
 )
 from custom_components.ev_charge_planner.service.vehicle import Vehicle
 
@@ -251,11 +252,12 @@ class TestFindPeriodsSingle:
         the earlier start should come first — no point delaying for a few öre.
         """
         start = datetime(2024, 1, 1, 0, 0)
-        # With charge_power_kw=10, duration=1h: total_cost = spot * 1.25 * 10 = spot * 12.5
-        # Hour 0: 1.038 * 12.5 = 12.975 -> rounds to 13.0 (7 >= 5, rounds up)
-        # Hour 1: 1.04  * 12.5 = 13.000 -> rounds to 13.0
-        # Hour 2: 1.0432 * 12.5 = 13.04 -> rounds to 13.0 (4 < 5, rounds down)
-        # Hour 3: 1.044 * 12.5 = 13.05  -> rounds to 13.1 (5 >= 5, rounds up)
+        # With charge_power_kw=10, duration=1h: total_cost = round(spot * 1.25 * 10, 2)
+        # _cost_at_start rounds total_cost to 2 decimals before sort-rounding to 1.
+        # Hour 0: 1.038 * 12.5 = 12.975 -> round(_, 2) = 12.97 -> round_kr = 13.0
+        # Hour 1: 1.04  * 12.5 = 13.000 -> round(_, 2) = 13.00 -> round_kr = 13.0
+        # Hour 2: 1.0432 * 12.5 = 13.04 -> round(_, 2) = 13.04 -> round_kr = 13.0
+        # Hour 3: 1.044 * 12.5 = 13.05  -> round(_, 2) = 13.05 -> round_kr = 13.1
         values = [1.038, 1.04, 1.0432, 1.044] + [2.0] * 20
         prices = make_prices(start, values)
 
@@ -269,7 +271,7 @@ class TestFindPeriodsSingle:
             charge_power_kw=10.0,
         )
 
-        # Hours 0 (12.975), 1 (13.00), 2 (13.04) all round to 13.0 kr
+        # Hours 0 (12.97), 1 (13.00), 2 (13.04) all round_kr to 13.0
         # They should appear in start-time order: hour 0, 1, 2
         top_three = periods[:3]
         assert top_three[0].start.hour == 0
@@ -297,6 +299,16 @@ class TestFindPeriodsSingle:
         # Hour 1 (12.0) should come before hour 0 (12.8)
         assert periods[0].start.hour == 1
         assert periods[1].start.hour == 0
+
+    def test_eur_rounds_to_two_decimals(self):
+        """EUR uses 2-decimal precision: 12.975 -> 12.98, not 13.0."""
+        assert round_kr(12.975, "EUR") == 12.98
+        assert round_kr(12.975, "SEK") == 13.0
+
+    def test_sek_half_up_one_decimal(self):
+        """SEK rounds 12.95 -> 13.0 (away-from-zero at 1 decimal)."""
+        assert round_kr(12.95, "SEK") == 13.0
+        assert round_kr(12.94, "SEK") == 12.9
 
     def test_overlap_increases_slots(self):
         start = datetime(2024, 1, 1, 0, 0)

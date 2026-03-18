@@ -89,7 +89,7 @@ class ChargePlannerSensor(SensorEntity):
             attrs["charge_power_kw"] = result.charge_power_kw
             attrs["charging_enabled"] = result.enabled
             attrs["deadline"] = (
-                result.deadline.strftime("%H:%M") if result.deadline is not None else None
+                result.deadline.isoformat() if result.deadline is not None else None
             )
         # Diagnostics: price data range and count
         prices = self._hub._prices
@@ -130,7 +130,9 @@ class ChargePlannerSensor(SensorEntity):
             if p.end.date() > now.date():
                 t2 += "\u207a\u00b9"
             prefix = ">> " if p.start.hour == now.hour and p.start.date() == now.date() else ""
-            sequences[f"{prefix}{t1}-{t2}"] = f"{round_kr(p.total_cost, self._hub.currency):.{self._cost_decimals}f} {unit}"
+            sequences[f"{prefix}{t1}-{t2}"] = (
+                f"{round_kr(p.total_cost, self._hub.currency):.{self._cost_decimals}f} {unit}"
+            )
         return sequences
 
     def _format_periods(self, result) -> str:
@@ -148,5 +150,7 @@ class ChargePlannerSensor(SensorEntity):
             t2 = p.end.strftime("%H:%M")
             if p.end.date() > now.date():
                 t2 += "\u207a\u00b9"  # ⁺¹
-            lines.append(f"| {t1}\u2013{t2} | {round_kr(p.total_cost, self._hub.currency):.{self._cost_decimals}f} {unit} |")
+            lines.append(
+                f"| {t1}\u2013{t2} | {round_kr(p.total_cost, self._hub.currency):.{self._cost_decimals}f} {unit} |"
+            )
         return "\n".join(lines)

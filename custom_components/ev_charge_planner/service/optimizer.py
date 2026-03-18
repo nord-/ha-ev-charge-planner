@@ -308,7 +308,9 @@ def optimize_joint(
             total_combos,
             _MAX_JOINT_COMBINATIONS,
         )
-        return _optimize_sequential(prices, entry_hours, vehicle_params, results, currency=currency)
+        return _optimize_sequential(
+            prices, entry_hours, vehicle_params, results, currency=currency
+        )
 
     best_total_cost = float("inf")
     best_combo: tuple[int, ...] | None = None

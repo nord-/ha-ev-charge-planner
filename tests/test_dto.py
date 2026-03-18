@@ -157,12 +157,17 @@ class TestNordPoolAdapterCurrency:
 
 
 class FakeHub:
-    def __init__(self, currency):
+    def __init__(self, currency, result=None, prices=None):
         self._currency = currency
+        self._result = result
+        self._prices = prices or []
 
     @property
     def currency(self):
         return self._currency
+
+    def get_result(self, vehicle_name):
+        return self._result
 
 
 class TestCurrencyUnit:
@@ -189,3 +194,57 @@ class TestCurrencyUnit:
 
     def test_lowercase_currency(self):
         assert self._make_sensor("sek")._currency_unit == "kr"
+
+    def test_sek_cost_decimals(self):
+        assert self._make_sensor("SEK")._cost_decimals == 1
+
+    def test_eur_cost_decimals(self):
+        assert self._make_sensor("EUR")._cost_decimals == 2
+
+
+class TestSensorExtraAttributes:
+    """Verify vehicle state attributes are exposed on the sensor."""
+
+    def test_vehicle_state_attributes(self):
+        from custom_components.ev_charge_planner.service.models import VehicleResult
+
+        result = VehicleResult(
+            vehicle_name="Tesla",
+            best_period=None,
+            current_soc=68.0,
+            target_soc=90.0,
+            charge_power_kw=11.0,
+            enabled=True,
+            deadline=datetime(2024, 1, 2, 15, 30),
+        )
+        hub = FakeHub("SEK", result=result)
+        sensor = ChargePlannerSensor(hub, "Tesla", "entry_1")
+        attrs = sensor.extra_state_attributes
+
+        assert attrs["current_soc"] == 68.0
+        assert attrs["target_soc"] == 90.0
+        assert attrs["charge_power_kw"] == 11.0
+        assert attrs["charging_enabled"] is True
+        assert attrs["deadline"] == "2024-01-02T15:30:00"
+
+    def test_disabled_vehicle_attribute(self):
+        from custom_components.ev_charge_planner.service.models import VehicleResult
+
+        result = VehicleResult(
+            vehicle_name="BYD",
+            best_period=None,
+            enabled=False,
+        )
+        hub = FakeHub("SEK", result=result)
+        sensor = ChargePlannerSensor(hub, "BYD", "entry_1")
+        attrs = sensor.extra_state_attributes
+
+        assert attrs["charging_enabled"] is False
+
+    def test_no_result_omits_vehicle_attributes(self):
+        hub = FakeHub("SEK", result=None)
+        sensor = ChargePlannerSensor(hub, "Missing", "entry_1")
+        attrs = sensor.extra_state_attributes
+
+        assert "current_soc" not in attrs
+        assert "deadline" not in attrs
