@@ -12,6 +12,7 @@ from custom_components.ev_charge_planner.service.optimizer import (
     derive_entry_hours,
     find_periods_single,
     optimize_joint,
+    round_kr,
 )
 from custom_components.ev_charge_planner.service.vehicle import Vehicle
 
@@ -31,6 +32,7 @@ def make_vehicle(
     charge_power_kw: float = 11.0,
     deadline: datetime | None = None,
     fees: float = 0.0,
+    vat_multiplier: float = 1.25,
 ) -> Vehicle:
     return Vehicle(
         name=name,
@@ -40,6 +42,7 @@ def make_vehicle(
         target_soc=target_soc,
         deadline=deadline or datetime(2024, 1, 1, 7, 0),
         fees_inc_vat=fees,
+        vat_multiplier=vat_multiplier,
     )
 
 
@@ -243,19 +246,19 @@ class TestFindPeriodsSingle:
         assert periods[0].total_cost == 20.13
 
     def test_sort_by_rounded_cost_then_earliest_start(self):
-        """Periods with same cost rounded to whole kronor should sort by earliest start.
+        """Periods with same cost rounded to 1 decimal (SEK) should sort by earliest start.
 
-        When two start times yield costs that differ by less than 1 kr,
-        the earlier start should come first — no point delaying and risking
-        not finishing just to save a few öre.
+        When two start times yield costs that differ by less than 0.1 kr,
+        the earlier start should come first — no point delaying for a few öre.
         """
         start = datetime(2024, 1, 1, 0, 0)
-        # With charge_power_kw=10, duration=1h: total_cost = avg_price * 1 * 10
-        # Hour 0: (1.04 * 1.25 + 0) * 10 = 13.00  -> rounds to 13
-        # Hour 1: (1.05 * 1.25 + 0) * 10 = 13.125 -> rounds to 13
-        # Hour 2: (1.00 * 1.25 + 0) * 10 = 12.50  -> rounds to 13 (away-from-zero)
-        # Hour 3: (1.10 * 1.25 + 0) * 10 = 13.75  -> rounds to 14
-        values = [1.04, 1.05, 1.00, 1.10] + [2.0] * 20
+        # With charge_power_kw=10, duration=1h: total_cost = round(spot * 1.25 * 10, 2)
+        # _cost_at_start rounds total_cost to 2 decimals before sort-rounding to 1.
+        # Hour 0: 1.038 * 12.5 = 12.975 -> round(_, 2) = 12.97 -> round_kr = 13.0
+        # Hour 1: 1.04  * 12.5 = 13.000 -> round(_, 2) = 13.00 -> round_kr = 13.0
+        # Hour 2: 1.0432 * 12.5 = 13.04 -> round(_, 2) = 13.04 -> round_kr = 13.0
+        # Hour 3: 1.044 * 12.5 = 13.05  -> round(_, 2) = 13.05 -> round_kr = 13.1
+        values = [1.038, 1.04, 1.0432, 1.044] + [2.0] * 20
         prices = make_prices(start, values)
 
         periods = find_periods_single(
@@ -268,19 +271,19 @@ class TestFindPeriodsSingle:
             charge_power_kw=10.0,
         )
 
-        # Hours 0 (13.00), 1 (13.125), 2 (12.50) all round to 13 kr
+        # Hours 0 (12.97), 1 (13.00), 2 (13.04) all round_kr to 13.0
         # They should appear in start-time order: hour 0, 1, 2
         top_three = periods[:3]
         assert top_three[0].start.hour == 0
         assert top_three[1].start.hour == 1
         assert top_three[2].start.hour == 2
 
-    def test_half_kronor_rounds_up(self):
-        """12.50 kr rounds to 13 kr (away-from-zero), not 12 (banker's rounding)."""
+    def test_half_rounds_up(self):
+        """Away-from-zero rounding: 12.75 rounds to 12.8, not 12.7 (banker's rounding)."""
         start = datetime(2024, 1, 1, 0, 0)
-        # Hour 0: (1.00 * 1.25 + 0) * 10 = 12.50  -> 13 kr (away-from-zero)
-        # Hour 1: (0.96 * 1.25 + 0) * 10 = 12.00  -> 12 kr
-        values = [1.00, 0.96] + [2.0] * 22
+        # Hour 0: (1.02 * 1.25 + 0) * 10 = 12.75 -> 12.8 (away-from-zero)
+        # Hour 1: (0.96 * 1.25 + 0) * 10 = 12.00 -> 12.0
+        values = [1.02, 0.96] + [2.0] * 22
         prices = make_prices(start, values)
 
         periods = find_periods_single(
@@ -293,9 +296,19 @@ class TestFindPeriodsSingle:
             charge_power_kw=10.0,
         )
 
-        # Hour 1 (12 kr) should come before hour 0 (13 kr)
+        # Hour 1 (12.0) should come before hour 0 (12.8)
         assert periods[0].start.hour == 1
         assert periods[1].start.hour == 0
+
+    def test_eur_rounds_to_two_decimals(self):
+        """EUR uses 2-decimal precision: 12.975 -> 12.98, not 13.0."""
+        assert round_kr(12.975, "EUR") == 12.98
+        assert round_kr(12.975, "SEK") == 13.0
+
+    def test_sek_half_up_one_decimal(self):
+        """SEK rounds 12.95 -> 13.0 (away-from-zero at 1 decimal)."""
+        assert round_kr(12.95, "SEK") == 13.0
+        assert round_kr(12.94, "SEK") == 12.9
 
     def test_overlap_increases_slots(self):
         start = datetime(2024, 1, 1, 0, 0)
@@ -434,42 +447,45 @@ class TestOptimizeJoint:
             assert r.best_period.total_cost == matching[0].total_cost
 
     def test_joint_prefers_earliest_start_at_same_rounded_cost(self):
-        """Joint optimization picks the earlier combo when costs round to the same kr.
+        """Joint optimization picks the earlier combo when costs round to the same value.
 
-        Three cheap slots: hour 2 (0.51), hour 6 (0.49), hour 10 (0.50).
+        Three cheap slots: hour 2 (0.52), hour 6 (0.49), hour 10 (0.48).
         All other hours are expensive (10.0). Each car needs 1h.
+        vat=1.0, power=1 kW, battery=1 kWh -> total_cost per car = spot.
 
-        Non-overlap combos (total_cost = sum of (spot * 1.25 * 11)):
-          {2, 6}:  13.75 -> 14 kr, earliest=2
-          {2, 10}: 13.89 -> 14 kr, earliest=2
-          {6, 10}: 13.61 -> 14 kr, earliest=6
+        Non-overlap combos (total_cost = spotA + spotB):
+          {2, 6}:  0.52 + 0.49 = 1.01 -> rounds to 1.0, earliest=2
+          {2, 10}: 0.52 + 0.48 = 1.00 -> rounds to 1.0, earliest=2
+          {6, 10}: 0.49 + 0.48 = 0.97 -> rounds to 1.0, earliest=6
 
-        Without rounding fix: {6, 10} wins (lowest exact cost).
-        With rounding fix: all round to 14 kr, earliest=2 wins -> {2, 6}.
+        Without rounding: {6, 10} wins (exact cost 0.97 is lowest).
+        With 1-decimal rounding: all round to 1.0, earliest=2 wins -> {2, 6}.
         """
         now = datetime(2024, 1, 1, 0, 0)
         values = [10.0] * 24
-        values[2] = 0.51
+        values[2] = 0.52
         values[6] = 0.49
-        values[10] = 0.50
+        values[10] = 0.48
         prices = make_prices(datetime(2024, 1, 1, 0, 0), values)
 
-        # Each needs 1h: (100-0)/100 * 11 / 11 = 1.0h
+        # Each needs 1h: (100-0)/100 * 1 / 1 = 1.0h, cost = spot (vat=1.0, power=1)
         v1 = make_vehicle(
             "Car1",
             0,
             100,
-            battery_kwh=11,
-            charge_power_kw=11,
+            battery_kwh=1,
+            charge_power_kw=1,
             deadline=datetime(2024, 1, 2, 7, 0),
+            vat_multiplier=1.0,
         )
         v2 = make_vehicle(
             "Car2",
             0,
             100,
-            battery_kwh=11,
-            charge_power_kw=11,
+            battery_kwh=1,
+            charge_power_kw=1,
             deadline=datetime(2024, 1, 2, 7, 0),
+            vat_multiplier=1.0,
         )
 
         results = optimize_joint([v1, v2], prices, now)

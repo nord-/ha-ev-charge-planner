@@ -78,10 +78,26 @@ class ChargePlannerSensor(SensorEntity):
 
     @property
     def extra_state_attributes(self) -> dict:
-        return {
+        result = self._hub.get_result(self._vehicle_name)
+        attrs: dict = {
             "periods_list_md": self._periods_list_md,
             "All sequences": self._all_sequences,
         }
+        if result is not None:
+            attrs["current_soc"] = result.current_soc
+            attrs["target_soc"] = result.target_soc
+            attrs["charge_power_kw"] = result.charge_power_kw
+            attrs["charging_enabled"] = result.enabled
+            attrs["deadline"] = (
+                result.deadline.isoformat() if result.deadline is not None else None
+            )
+        # Diagnostics: price data range and count
+        prices = self._hub._prices
+        if prices:
+            attrs["_debug_price_count"] = len(prices)
+            attrs["_debug_price_first"] = prices[0].start.isoformat()
+            attrs["_debug_price_last"] = prices[-1].start.isoformat()
+        return attrs
 
     @property
     def _currency_unit(self) -> str:
@@ -92,6 +108,11 @@ class ChargePlannerSensor(SensorEntity):
         if code == "EUR":
             return "\u20ac"
         return code
+
+    @property
+    def _cost_decimals(self) -> int:
+        """Decimal places for displaying costs (matches rounding precision)."""
+        return 1 if self._hub.currency.upper() in ("SEK", "NOK", "DKK") else 2
 
     def _make_sequences(self, result) -> dict[str, str]:
         """Build All sequences dict matching peaqnext format."""
@@ -109,7 +130,9 @@ class ChargePlannerSensor(SensorEntity):
             if p.end.date() > now.date():
                 t2 += "\u207a\u00b9"
             prefix = ">> " if p.start.hour == now.hour and p.start.date() == now.date() else ""
-            sequences[f"{prefix}{t1}-{t2}"] = f"{p.total_cost:.1f} {unit}"
+            sequences[f"{prefix}{t1}-{t2}"] = (
+                f"{round_kr(p.total_cost, self._hub.currency):.{self._cost_decimals}f} {unit}"
+            )
         return sequences
 
     def _format_periods(self, result) -> str:
@@ -127,5 +150,7 @@ class ChargePlannerSensor(SensorEntity):
             t2 = p.end.strftime("%H:%M")
             if p.end.date() > now.date():
                 t2 += "\u207a\u00b9"  # ⁺¹
-            lines.append(f"| {t1}\u2013{t2} | {round_kr(p.total_cost):.0f} {unit} |")
+            lines.append(
+                f"| {t1}\u2013{t2} | {round_kr(p.total_cost, self._hub.currency):.{self._cost_decimals}f} {unit} |"
+            )
         return "\n".join(lines)

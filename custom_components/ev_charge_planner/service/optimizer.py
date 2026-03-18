@@ -20,10 +20,22 @@ _LOGGER = logging.getLogger(__name__)
 
 _MAX_JOINT_COMBINATIONS = 100_000
 
+_ROUNDING_QUANTUM: dict[str, Decimal] = {
+    "SEK": Decimal("0.1"),
+    "NOK": Decimal("0.1"),
+    "DKK": Decimal("0.1"),
+}
+_DEFAULT_ROUNDING_QUANTUM = Decimal("0.01")
 
-def round_kr(value: float) -> float:
-    """Round to whole currency units using away-from-zero rounding (e.g. 12.50 → 13)."""
-    return float(Decimal(str(value)).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+
+def round_kr(value: float, currency: str = "SEK") -> float:
+    """Round to nearest currency unit using away-from-zero rounding.
+
+    kr currencies (SEK/NOK/DKK): 1 decimal place (e.g. 12.55 → 12.6).
+    EUR and others: 2 decimal places (e.g. 12.555 → 12.56).
+    """
+    quantum = _ROUNDING_QUANTUM.get(currency.upper(), _DEFAULT_ROUNDING_QUANTUM)
+    return float(Decimal(str(value)).quantize(quantum, rounding=ROUND_HALF_UP))
 
 
 def derive_entry_hours(prices: list[PriceSlot]) -> float:
@@ -66,6 +78,7 @@ def find_periods_single(
     vat_multiplier: float,
     charge_power_kw: float,
     other_windows: list[tuple[datetime, datetime]] | None = None,
+    currency: str = "SEK",
 ) -> list[ChargePeriod]:
     """Find all possible charging periods for a single vehicle.
 
@@ -107,7 +120,7 @@ def find_periods_single(
         if period is not None:
             periods.append(period)
 
-    periods.sort(key=lambda p: (round_kr(p.total_cost), p.start))
+    periods.sort(key=lambda p: (round_kr(p.total_cost, currency), p.start))
     return periods
 
 
@@ -176,6 +189,7 @@ def _optimize_sequential(
     entry_hours: float,
     vehicle_params: list[dict],
     results: dict[str, VehicleResult],
+    currency: str = "SEK",
 ) -> dict[str, VehicleResult]:
     """Fallback: optimize vehicles one at a time, each considering prior results."""
     assigned_windows: list[tuple[datetime, datetime]] = []
@@ -191,6 +205,7 @@ def _optimize_sequential(
             v.vat_multiplier,
             v.charge_power_kw,
             other_windows=assigned_windows if assigned_windows else None,
+            currency=currency,
         )
         best = periods[0] if periods else None
         results[v.name] = VehicleResult(
@@ -210,6 +225,7 @@ def optimize_joint(
     vehicles: list[Vehicle],
     prices: list[PriceSlot],
     now: datetime,
+    currency: str = "SEK",
 ) -> dict[str, VehicleResult]:
     """Find optimal start times for all vehicles jointly.
 
@@ -251,6 +267,7 @@ def optimize_joint(
             v.fees_inc_vat,
             v.vat_multiplier,
             v.charge_power_kw,
+            currency=currency,
         )
         results[v.name] = VehicleResult(
             vehicle_name=v.name,
@@ -291,7 +308,9 @@ def optimize_joint(
             total_combos,
             _MAX_JOINT_COMBINATIONS,
         )
-        return _optimize_sequential(prices, entry_hours, vehicle_params, results)
+        return _optimize_sequential(
+            prices, entry_hours, vehicle_params, results, currency=currency
+        )
 
     best_total_cost = float("inf")
     best_combo: tuple[int, ...] | None = None
@@ -336,7 +355,7 @@ def optimize_joint(
         if not valid:
             continue
 
-        rounded_cost = round_kr(total_cost)
+        rounded_cost = round_kr(total_cost, currency)
         earliest_start = min(prices[si].start for si in combo)
         if best_combo is None:
             best_total_cost = total_cost
@@ -344,7 +363,7 @@ def optimize_joint(
             best_earliest_start = earliest_start
             continue
 
-        rounded_best = round_kr(best_total_cost)
+        rounded_best = round_kr(best_total_cost, currency)
 
         if (rounded_cost, earliest_start) < (rounded_best, best_earliest_start):
             best_total_cost = total_cost
@@ -388,6 +407,7 @@ def optimize_joint(
                 v.vat_multiplier,
                 v.charge_power_kw,
                 other_windows=other_wins,
+                currency=currency,
             )
             results[v.name] = VehicleResult(
                 vehicle_name=v.name,

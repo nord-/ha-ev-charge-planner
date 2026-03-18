@@ -117,17 +117,23 @@ class Hub:
         self._hass.async_create_task(self.async_update())
 
     async def async_update(self) -> dict[str, VehicleResult]:
-        """Run optimization (throttled, but always allow first successful run)."""
-        now_mono = time.monotonic()
-        if self._results and now_mono - self._last_update < SPOTPRICE_THROTTLE_SECONDS:
-            return self._results
+        """Run optimization (throttled, but always allow first successful run).
 
-        # Update spot prices
+        Price fetching is never throttled — only the optimization step is,
+        so that a NordPool state change during the throttle window doesn't
+        cause stale price data.
+        """
+        # Always fetch latest prices (cheap — just reads HA state)
         prices = await self.spotprice.async_fetch()
         if prices is not None:
             self._prices = prices
         if not self._prices:
             _LOGGER.debug("Spot prices not yet available")
+            return self._results
+
+        # Throttle optimization (but not price fetching above)
+        now_mono = time.monotonic()
+        if self._results and now_mono - self._last_update < SPOTPRICE_THROTTLE_SECONDS:
             return self._results
 
         now = self.dt_model.now()
@@ -136,7 +142,18 @@ class Hub:
         vehicles = self._build_vehicles(now)
 
         # Run joint optimization
-        self._results = optimize_joint(vehicles, self._prices, now)
+        self._results = optimize_joint(vehicles, self._prices, now, currency=self.currency)
+
+        # Attach current vehicle state to results for sensor attributes
+        for v in vehicles:
+            if v.name in self._results:
+                r = self._results[v.name]
+                r.current_soc = v.current_soc
+                r.target_soc = v.target_soc
+                r.charge_power_kw = v.charge_power_kw
+                r.enabled = v.enabled
+                r.deadline = v.deadline
+
         self._last_update = now_mono
 
         # Manage freeze state
