@@ -7,7 +7,10 @@ import time
 from datetime import datetime, timedelta
 
 from homeassistant.core import Event, HomeAssistant, callback
-from homeassistant.helpers.event import async_track_state_change_event
+from homeassistant.helpers.event import (
+    async_call_later,
+    async_track_state_change_event,
+)
 
 from ..const import (
     CONF_BATTERY_CAPACITY,
@@ -28,7 +31,7 @@ from ..const import (
     DEFAULT_FEES,
     DEFAULT_SOC_TARGET,
     DEFAULT_VAT_PERCENT,
-    SPOTPRICE_THROTTLE_SECONDS,
+    STARTUP_DELAY_SECONDS,
 )
 from .dt_model import DTModel
 from .models import PriceSlot, VehicleResult
@@ -63,7 +66,8 @@ class Hub:
             self._state_reader = None
         self.dt_model = DTModel()
         self._results: dict[str, VehicleResult] = {}
-        self._last_update: float = 0
+        self._setup_time: float = 0
+        self._update_pending: bool = False
         self._unsub_listeners: list = []
         self._update_callbacks: list = []
 
@@ -84,6 +88,8 @@ class Hub:
         """Set up state listeners."""
         if self._test or not self._hass:
             return
+
+        self._setup_time = time.monotonic()
 
         # Listen to price sensor changes
         entities_to_track = set()
@@ -111,18 +117,32 @@ class Hub:
                 )
             )
 
+        # Schedule first optimization after startup delay
+        self._unsub_listeners.append(
+            async_call_later(self._hass, STARTUP_DELAY_SECONDS, self._async_startup_update)
+        )
+
     @callback
     def _async_on_change(self, event: Event) -> None:
-        """Handle state change of a tracked entity."""
+        """Handle state change of a tracked entity (debounced)."""
+        if not self._update_pending:
+            self._update_pending = True
+            self._hass.async_create_task(self._async_debounced_update())
+
+    async def _async_debounced_update(self) -> None:
+        """Run update and reset pending flag."""
+        try:
+            await self.async_update()
+        finally:
+            self._update_pending = False
+
+    @callback
+    def _async_startup_update(self, _now) -> None:
+        """Run first optimization after startup delay."""
         self._hass.async_create_task(self.async_update())
 
     async def async_update(self) -> dict[str, VehicleResult]:
-        """Run optimization (throttled, but always allow first successful run).
-
-        Price fetching is never throttled — only the optimization step is,
-        so that a NordPool state change during the throttle window doesn't
-        cause stale price data.
-        """
+        """Run optimization, skipping during startup delay to let entities settle."""
         # Always fetch latest prices (cheap — just reads HA state)
         prices = await self.spotprice.async_fetch()
         if prices is not None:
@@ -131,9 +151,10 @@ class Hub:
             _LOGGER.debug("Spot prices not yet available")
             return self._results
 
-        # Throttle optimization (but not price fetching above)
+        # Skip optimization during startup delay (let entities settle)
         now_mono = time.monotonic()
-        if self._results and now_mono - self._last_update < SPOTPRICE_THROTTLE_SECONDS:
+        if self._setup_time and now_mono - self._setup_time < STARTUP_DELAY_SECONDS:
+            _LOGGER.debug("Startup delay active, skipping optimization")
             return self._results
 
         now = self.dt_model.now()
@@ -154,7 +175,7 @@ class Hub:
                 r.enabled = v.enabled
                 r.deadline = v.deadline
 
-        self._last_update = now_mono
+        self._setup_time = 0  # startup delay served, disable it
 
         # Manage freeze state
         self._manage_freeze(vehicles, now)

@@ -1,5 +1,6 @@
 """Tests for Hub freeze-state persistence and price caching."""
 
+import time
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -16,6 +17,7 @@ from custom_components.ev_charge_planner.const import (
     CONF_SOC_TARGET_FIXED,
     CONF_VAT_PERCENT,
     CONF_VEHICLE_NAME,
+    STARTUP_DELAY_SECONDS,
 )
 from custom_components.ev_charge_planner.service.hub import Hub
 from custom_components.ev_charge_planner.service.models import (
@@ -148,8 +150,6 @@ async def test_price_caching_on_fetch_none():
 
     # Stub now returns None (e.g. temporary HA issue)
     stub._prices = None
-    hub._last_update = 0  # reset throttle
-
     # Second update — should use cached prices
     results2 = await hub.async_update()
     assert results2["Tesla"].best_period is not None
@@ -314,3 +314,27 @@ async def test_no_prices_returns_empty_results():
 
     results = await hub.async_update()
     assert results == {}
+
+
+@pytest.mark.asyncio
+async def test_startup_delay_skips_optimization():
+    """During startup delay, optimization is skipped even with prices available."""
+    now = datetime(2024, 1, 1, 0, 0)
+    prices = [PriceSlot(start=now + timedelta(hours=i), value=0.5) for i in range(24)]
+    stub = StubSpotPrice(prices)
+
+    config = make_vehicle_config(soc_target=60, battery=60, power=11)
+    hub = Hub(None, [config], test=False, spotprice=stub)
+    hub.dt_model.set_now(now)
+
+    # Simulate async_setup() setting the startup time
+    hub._setup_time = time.monotonic()
+
+    # Update during startup delay — should return empty results
+    results = await hub.async_update()
+    assert results == {}
+
+    # After startup delay expires, optimization should run
+    hub._setup_time = time.monotonic() - (STARTUP_DELAY_SECONDS + 1)
+    results = await hub.async_update()
+    assert results["Tesla"].best_period is not None

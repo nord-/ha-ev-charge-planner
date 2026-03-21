@@ -83,7 +83,7 @@ Central coordinator per config entry. Listens to state changes on price sensor +
 
 ## Releases
 
-Releases are **fully automated** via `.github/workflows/release.yml`. To cut a new release:
+Releases are **fully automated** via `.github/workflows/release.yml`. Every PR should include a version bump and CHANGELOG entry so that merging to `master` automatically creates a release:
 
 1. Bump `version` in `custom_components/ev_charge_planner/manifest.json`
 2. Add a section to `CHANGELOG.md`:
@@ -92,7 +92,6 @@ Releases are **fully automated** via `.github/workflows/release.yml`. To cut a n
    ### Added / Changed / Fixed
    - ...
    ```
-3. Push to `master`
 
 The workflow detects the `manifest.json` change, reads the matching section from `CHANGELOG.md`, creates a GitHub release with that text, and attaches `ev_charge_planner.zip` (files at root, no parent directory).
 
