@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.4.2] - 2026-03-21
+
+### Changed
+- Replace 60s continuous optimization throttle with 30s startup delay — parameter changes now trigger immediate re-optimization
+
 ## [0.4.1] - 2026-03-18
 
 ### Added
