@@ -17,6 +17,7 @@ from custom_components.ev_charge_planner.const import (
     CONF_SOC_TARGET_FIXED,
     CONF_VAT_PERCENT,
     CONF_VEHICLE_NAME,
+    STARTUP_DELAY_SECONDS,
 )
 from custom_components.ev_charge_planner.service.hub import Hub
 from custom_components.ev_charge_planner.service.models import (
@@ -334,6 +335,6 @@ async def test_startup_delay_skips_optimization():
     assert results == {}
 
     # After startup delay expires, optimization should run
-    hub._setup_time = time.monotonic() - 31
+    hub._setup_time = time.monotonic() - (STARTUP_DELAY_SECONDS + 1)
     results = await hub.async_update()
     assert results["Tesla"].best_period is not None
