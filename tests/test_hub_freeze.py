@@ -290,6 +290,21 @@ async def test_deadline_same_day_not_passed_local():
 
 
 @pytest.mark.asyncio
+async def test_deadline_datetime_naive_gets_local_tz():
+    """Naive date+time string should get local tz, not UTC."""
+    hub = Hub(None, [make_vehicle_config()], test=True)
+    hub._local_tz = ZoneInfo("Europe/Stockholm")
+    now = datetime(2024, 1, 15, 22, 0, tzinfo=UTC)
+    reader = FakeStateReader({"input_datetime.deadline": "2024-01-16 06:00:00"})
+    hub._state_reader = reader
+
+    deadline = hub._get_deadline("input_datetime.deadline", now)
+    utc_deadline = deadline.astimezone(UTC)
+    assert utc_deadline.hour == 5, "Naive 06:00 should be treated as CET = 05:00 UTC"
+    assert utc_deadline.day == 16
+
+
+@pytest.mark.asyncio
 async def test_vat_percent_to_multiplier():
     """VAT percent is converted to multiplier in Vehicle."""
     config = make_vehicle_config()

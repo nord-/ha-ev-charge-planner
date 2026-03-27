@@ -77,7 +77,11 @@ class Hub:
         self._freeze_state: dict[str, tuple[float, datetime]] = {}
 
         self._prices: list[PriceSlot] = []
-        self._local_tz: ZoneInfo = ZoneInfo(hass.config.time_zone) if hass else ZoneInfo("UTC")
+        try:
+            self._local_tz: ZoneInfo = ZoneInfo(hass.config.time_zone) if hass else ZoneInfo("UTC")
+        except (KeyError, TypeError):
+            _LOGGER.warning("Invalid time_zone in HA config, falling back to UTC")
+            self._local_tz = ZoneInfo("UTC")
 
         # Determine price sensor (all vehicles share the same one)
         if spotprice is not None:
@@ -323,8 +327,8 @@ class Hub:
                 return deadline
             else:
                 parsed = datetime.fromisoformat(time_str)
-                if parsed.tzinfo is None and now.tzinfo is not None:
-                    parsed = parsed.replace(tzinfo=now.tzinfo)
+                if parsed.tzinfo is None:
+                    parsed = parsed.replace(tzinfo=self._local_tz)
                 return parsed
         except (ValueError, IndexError):
             return now + timedelta(hours=8)
