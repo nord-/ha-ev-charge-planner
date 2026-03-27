@@ -79,7 +79,7 @@ class Hub:
         self._prices: list[PriceSlot] = []
         try:
             self._local_tz: ZoneInfo = ZoneInfo(hass.config.time_zone) if hass else ZoneInfo("UTC")
-        except (KeyError, TypeError):
+        except (KeyError, TypeError):  # KeyError covers ZoneInfoNotFoundError
             _LOGGER.warning("Invalid time_zone in HA config, falling back to UTC")
             self._local_tz = ZoneInfo("UTC")
 
@@ -327,7 +327,7 @@ class Hub:
                 return deadline
             else:
                 parsed = datetime.fromisoformat(time_str)
-                if parsed.tzinfo is None:
+                if parsed.tzinfo is None and now.tzinfo is not None:
                     parsed = parsed.replace(tzinfo=self._local_tz)
                 return parsed
         except (ValueError, IndexError):
