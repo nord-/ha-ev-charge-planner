@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.4.3] - 2026-03-27
+
+### Fixed
+- Deadline timezone bug: `input_datetime` values (user's local time) were interpreted as UTC, causing charge windows to extend past the configured deadline
+
 ## [0.4.2] - 2026-03-21
 
 ### Changed

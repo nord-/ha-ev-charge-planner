@@ -2,6 +2,7 @@
 
 import time
 from datetime import UTC, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -195,6 +196,112 @@ async def test_deadline_works_with_aware_now():
     deadline = hub._get_deadline("input_datetime.deadline", now)
     assert deadline.tzinfo is not None, "Deadline must be tz-aware when now is tz-aware"
     assert deadline.day == 16
+
+
+@pytest.mark.asyncio
+async def test_deadline_local_timezone_winter():
+    """Deadline 06:00 CET (winter, UTC+1) must be 05:00 UTC, not 06:00 UTC."""
+    hub = Hub(None, [make_vehicle_config()], test=True)
+    hub._local_tz = ZoneInfo("Europe/Stockholm")
+    # 2024-01-15 22:00 UTC = 23:00 CET — deadline 06:00 is tomorrow
+    now = datetime(2024, 1, 15, 22, 0, tzinfo=UTC)
+    reader = FakeStateReader({"input_datetime.deadline": "06:00:00"})
+    hub._state_reader = reader
+
+    deadline = hub._get_deadline("input_datetime.deadline", now)
+    assert deadline.tzinfo is not None
+    utc_deadline = deadline.astimezone(UTC)
+    assert utc_deadline.hour == 5, "06:00 CET should be 05:00 UTC"
+    assert utc_deadline.day == 16
+
+
+@pytest.mark.asyncio
+async def test_deadline_local_timezone_summer():
+    """Deadline 06:00 CEST (summer, UTC+2) must be 04:00 UTC, not 06:00 UTC."""
+    hub = Hub(None, [make_vehicle_config()], test=True)
+    hub._local_tz = ZoneInfo("Europe/Stockholm")
+    # 2024-07-10 20:00 UTC = 22:00 CEST — deadline 06:00 is tomorrow
+    now = datetime(2024, 7, 10, 20, 0, tzinfo=UTC)
+    reader = FakeStateReader({"input_datetime.deadline": "06:00:00"})
+    hub._state_reader = reader
+
+    deadline = hub._get_deadline("input_datetime.deadline", now)
+    utc_deadline = deadline.astimezone(UTC)
+    assert utc_deadline.hour == 4, "06:00 CEST should be 04:00 UTC"
+    assert utc_deadline.day == 11
+
+
+@pytest.mark.asyncio
+async def test_deadline_across_spring_dst_transition():
+    """Now is Saturday CET, deadline Sunday morning after clocks spring forward.
+
+    2024-03-30 22:00 UTC = 23:00 CET (Saturday).
+    Clocks spring forward 2024-03-31 02:00 CET → 03:00 CEST.
+    Deadline 06:00 local on Sunday = 06:00 CEST = 04:00 UTC.
+    """
+    hub = Hub(None, [make_vehicle_config()], test=True)
+    hub._local_tz = ZoneInfo("Europe/Stockholm")
+    now = datetime(2024, 3, 30, 22, 0, tzinfo=UTC)
+    reader = FakeStateReader({"input_datetime.deadline": "06:00:00"})
+    hub._state_reader = reader
+
+    deadline = hub._get_deadline("input_datetime.deadline", now)
+    utc_deadline = deadline.astimezone(UTC)
+    assert utc_deadline.day == 31, "Deadline should be Sunday"
+    assert utc_deadline.hour == 4, "06:00 CEST = 04:00 UTC after spring forward"
+
+
+@pytest.mark.asyncio
+async def test_deadline_across_fall_dst_transition():
+    """Now is Saturday CEST, deadline Sunday morning after clocks fall back.
+
+    2024-10-26 20:00 UTC = 22:00 CEST (Saturday).
+    Clocks fall back 2024-10-27 03:00 CEST → 02:00 CET.
+    Deadline 06:00 local on Sunday = 06:00 CET = 05:00 UTC.
+    """
+    hub = Hub(None, [make_vehicle_config()], test=True)
+    hub._local_tz = ZoneInfo("Europe/Stockholm")
+    now = datetime(2024, 10, 26, 20, 0, tzinfo=UTC)
+    reader = FakeStateReader({"input_datetime.deadline": "06:00:00"})
+    hub._state_reader = reader
+
+    deadline = hub._get_deadline("input_datetime.deadline", now)
+    utc_deadline = deadline.astimezone(UTC)
+    assert utc_deadline.day == 27, "Deadline should be Sunday"
+    assert utc_deadline.hour == 5, "06:00 CET = 05:00 UTC after fall back"
+
+
+@pytest.mark.asyncio
+async def test_deadline_same_day_not_passed_local():
+    """Deadline today when it hasn't passed yet in local time.
+
+    2024-01-15 03:00 UTC = 04:00 CET.  Deadline 06:00 CET is still today.
+    """
+    hub = Hub(None, [make_vehicle_config()], test=True)
+    hub._local_tz = ZoneInfo("Europe/Stockholm")
+    now = datetime(2024, 1, 15, 3, 0, tzinfo=UTC)
+    reader = FakeStateReader({"input_datetime.deadline": "06:00:00"})
+    hub._state_reader = reader
+
+    deadline = hub._get_deadline("input_datetime.deadline", now)
+    utc_deadline = deadline.astimezone(UTC)
+    assert utc_deadline.day == 15, "Deadline should be today, not tomorrow"
+    assert utc_deadline.hour == 5, "06:00 CET = 05:00 UTC"
+
+
+@pytest.mark.asyncio
+async def test_deadline_datetime_naive_gets_local_tz():
+    """Naive date+time string should get local tz, not UTC."""
+    hub = Hub(None, [make_vehicle_config()], test=True)
+    hub._local_tz = ZoneInfo("Europe/Stockholm")
+    now = datetime(2024, 1, 15, 22, 0, tzinfo=UTC)
+    reader = FakeStateReader({"input_datetime.deadline": "2024-01-16 06:00:00"})
+    hub._state_reader = reader
+
+    deadline = hub._get_deadline("input_datetime.deadline", now)
+    utc_deadline = deadline.astimezone(UTC)
+    assert utc_deadline.hour == 5, "Naive 06:00 should be treated as CET = 05:00 UTC"
+    assert utc_deadline.day == 16
 
 
 @pytest.mark.asyncio
