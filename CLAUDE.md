@@ -41,7 +41,9 @@ The integration follows a layered design: **HA integration layer** → **Hub coo
 
 ### Hub (`service/hub.py`)
 
-Central coordinator per config entry. Listens to state changes on price sensor + all vehicle entities (SoC, target, deadline, power, fees, enabled). Throttles updates to 60s. Uses injectable `StateReader` protocol for HA state access. Manages **freeze state** via `_freeze_state` dict storing `(frozen_duration, original_period_end)` tuples — once a vehicle's charging period has started, its parameters are locked until the period ends. Expired freeze entries are pruned in `_build_vehicles()`. Deadline rolls to next day if time has already passed. Fees read from entity (inc VAT) or fixed value, with legacy `grid_fees_ex_vat` fallback (auto-converted). VAT computed from configurable percentage. Each vehicle has an optional `enabled_entity` (`input_boolean`) — when off, the vehicle is excluded from optimization (defaults to enabled if not configured).
+Central coordinator per config entry. Listens to state changes on price sensor + all vehicle entities (SoC, target, deadline, power, fees, enabled). 30s startup delay before first optimization, then immediate re-optimization on state changes. Uses injectable `StateReader` protocol for HA state access. Manages **freeze state** via `_freeze_state` dict storing `(frozen_duration, original_period_end)` tuples — once a vehicle's charging period has started, its parameters are locked until the period ends. Expired freeze entries are pruned in `_build_vehicles()`. Deadline rolls to next day if time has already passed. Fees read from entity (inc VAT) or fixed value, with legacy `grid_fees_ex_vat` fallback (auto-converted). VAT computed from configurable percentage. Each vehicle has an optional `enabled_entity` (`input_boolean`) — when off, the vehicle is excluded from optimization (defaults to enabled if not configured).
+
+**Timezone handling:** `DTModel.now()` returns UTC. `input_datetime` entities provide values in the user's local timezone. `_get_deadline()` converts UTC `now` to HA's configured timezone (`hass.config.time_zone` → `self._local_tz`) before applying hour/minute from `input_datetime`.
 
 ### Spot price layer (`service/spotprice/`)
 
@@ -80,6 +82,8 @@ Central coordinator per config entry. Listens to state changes on price sensor +
 - `pytest` for testing, `black`/`isort` for formatting
 - English in code/comments, Swedish in UI labels
 - HACS compatible (`hacs.json` at repo root)
+- **Default branch is `master`** (not `main`)
+- Always `git fetch origin` before creating feature/fix branches to ensure latest remote state
 
 ## Releases
 
