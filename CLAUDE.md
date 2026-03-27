@@ -101,7 +101,8 @@ The workflow detects the `manifest.json` change, reads the matching section from
 
 ## User Preferences
 
-- No "Co-Authored-By: Claude" in commits
+- No "Co-Authored-By: Claude" or similar attribution in commit messages
+- No "Generated with Claude Code" or similar in PR descriptions/comments
 - Avoid unnecessary `cd` commands — trust the working directory
 - Avoid `$()` subshell substitution in bash (triggers security prompts)
 - Keep responses concise, no trailing summaries
