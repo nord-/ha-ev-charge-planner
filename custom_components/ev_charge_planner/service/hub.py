@@ -77,9 +77,7 @@ class Hub:
         self._freeze_state: dict[str, tuple[float, datetime]] = {}
 
         self._prices: list[PriceSlot] = []
-        self._local_tz: ZoneInfo = (
-            ZoneInfo(hass.config.time_zone) if hass else ZoneInfo("UTC")
-        )
+        self._local_tz: ZoneInfo = ZoneInfo(hass.config.time_zone) if hass else ZoneInfo("UTC")
 
         # Determine price sensor (all vehicles share the same one)
         if spotprice is not None:
