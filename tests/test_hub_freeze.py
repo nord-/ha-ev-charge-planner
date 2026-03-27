@@ -2,6 +2,7 @@
 
 import time
 from datetime import UTC, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -195,6 +196,23 @@ async def test_deadline_works_with_aware_now():
     deadline = hub._get_deadline("input_datetime.deadline", now)
     assert deadline.tzinfo is not None, "Deadline must be tz-aware when now is tz-aware"
     assert deadline.day == 16
+
+
+@pytest.mark.asyncio
+async def test_deadline_local_timezone():
+    """Deadline 06:00 local (CET) must not become 06:00 UTC."""
+    hub = Hub(None, [make_vehicle_config()], test=True)
+    hub._local_tz = ZoneInfo("Europe/Stockholm")
+    # now = 2024-01-15 22:00 UTC = 2024-01-15 23:00 CET
+    now = datetime(2024, 1, 15, 22, 0, tzinfo=UTC)
+    reader = FakeStateReader({"input_datetime.deadline": "06:00:00"})
+    hub._state_reader = reader
+
+    deadline = hub._get_deadline("input_datetime.deadline", now)
+    # Should be 06:00 CET (= 05:00 UTC), not 06:00 UTC
+    assert deadline.tzinfo is not None
+    assert deadline.astimezone(UTC).hour == 5, "06:00 CET should be 05:00 UTC"
+    assert deadline.day == 16  # next day in local time
 
 
 @pytest.mark.asyncio

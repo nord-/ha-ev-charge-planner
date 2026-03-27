@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import logging
 import time
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.helpers.event import (
@@ -76,6 +77,9 @@ class Hub:
         self._freeze_state: dict[str, tuple[float, datetime]] = {}
 
         self._prices: list[PriceSlot] = []
+        self._local_tz: ZoneInfo = (
+            ZoneInfo(hass.config.time_zone) if hass else ZoneInfo("UTC")
+        )
 
         # Determine price sensor (all vehicles share the same one)
         if spotprice is not None:
@@ -313,8 +317,10 @@ class Hub:
             if len(time_str) <= 8:  # "HH:MM" or "HH:MM:SS"
                 parts = time_str.split(":")
                 hour, minute = int(parts[0]), int(parts[1])
-                deadline = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
-                if deadline <= now:
+                # input_datetime values are in the user's local timezone
+                local_now = now.astimezone(self._local_tz) if now.tzinfo else now
+                deadline = local_now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+                if deadline <= local_now:
                     deadline += timedelta(days=1)
                 return deadline
             else:
