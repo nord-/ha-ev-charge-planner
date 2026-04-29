@@ -5,5 +5,5 @@
     "config_flow": true,
     "after_dependencies": ["nordpool"],
     "iot_class": "calculated",
-    "version": "0.4.3"
+    "version": "0.4.4"
 }

@@ -31,18 +31,21 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
+NON_EMPTY_STR = vol.All(str, vol.Length(min=1))
+
+
 VEHICLE_SCHEMA = vol.Schema(
     {
-        vol.Required(CONF_VEHICLE_NAME): str,
-        vol.Required(CONF_SOC_SENSOR): str,
+        vol.Required(CONF_VEHICLE_NAME): NON_EMPTY_STR,
+        vol.Required(CONF_SOC_SENSOR): NON_EMPTY_STR,
         vol.Optional(CONF_SOC_TARGET_ENTITY): str,
         vol.Optional(CONF_SOC_TARGET_FIXED, default=DEFAULT_SOC_TARGET): vol.Coerce(float),
         vol.Required(CONF_BATTERY_CAPACITY): vol.Coerce(float),
         vol.Optional(CONF_CHARGE_POWER): vol.Coerce(float),
         vol.Optional(CONF_CHARGE_POWER_ENTITY): str,
         vol.Optional(CONF_ENABLED_ENTITY): str,
-        vol.Required(CONF_DEADLINE_ENTITY): str,
-        vol.Required(CONF_PRICE_SENSOR): str,
+        vol.Required(CONF_DEADLINE_ENTITY): NON_EMPTY_STR,
+        vol.Required(CONF_PRICE_SENSOR): NON_EMPTY_STR,
         vol.Optional(CONF_FEES_ENTITY): str,
         vol.Optional(CONF_FEES_FIXED, default=DEFAULT_FEES): vol.Coerce(float),
         vol.Optional(CONF_VAT_PERCENT, default=DEFAULT_VAT_PERCENT): vol.All(
@@ -197,6 +200,22 @@ class EVChargePlannerOptionsFlow(config_entries.OptionsFlow):
 
         schema = vol.Schema(
             {
+                vol.Required(
+                    CONF_SOC_SENSOR,
+                    default=current.get(CONF_SOC_SENSOR, ""),
+                ): NON_EMPTY_STR,
+                vol.Required(
+                    CONF_BATTERY_CAPACITY,
+                    default=current.get(CONF_BATTERY_CAPACITY),
+                ): vol.Coerce(float),
+                vol.Required(
+                    CONF_DEADLINE_ENTITY,
+                    default=current.get(CONF_DEADLINE_ENTITY, ""),
+                ): NON_EMPTY_STR,
+                vol.Required(
+                    CONF_PRICE_SENSOR,
+                    default=current.get(CONF_PRICE_SENSOR, ""),
+                ): NON_EMPTY_STR,
                 vol.Optional(
                     CONF_ENABLED_ENTITY,
                     description={"suggested_value": current.get(CONF_ENABLED_ENTITY, "")},
