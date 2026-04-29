@@ -4,6 +4,8 @@
 
 ### Fixed
 - Options flow edit form now includes `deadline_entity`, `soc_sensor`, `battery_capacity`, and `price_sensor` so they can be changed after initial setup. Previously a wrong/blank `deadline_entity` could only be corrected by removing and re-adding the integration, and the deadline would silently fall back to `now + 8h`.
+- Required entity_id fields (vehicle name, SoC sensor, deadline, price sensor) now reject blank submissions in both the add and edit forms — prevents silently saving an empty value that triggers the same fallback.
+- `strings.json` mirrors the new edit-form keys added to `translations/en.json` so translation tooling stays in sync.
 
 ## [0.4.3] - 2026-03-27
 

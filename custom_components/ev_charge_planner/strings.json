@@ -75,6 +75,10 @@
             "edit_vehicle": {
                 "title": "Edit {vehicle_name}",
                 "data": {
+                    "soc_sensor": "Current SoC sensor (entity_id)",
+                    "battery_capacity": "Battery capacity (kWh)",
+                    "deadline_entity": "Deadline (input_datetime entity_id)",
+                    "price_sensor": "Price sensor (NordPool entity_id)",
                     "enabled_entity": "Charging enabled (input_boolean entity_id)",
                     "soc_target_entity": "Target SoC sensor (entity_id)",
                     "soc_target_fixed": "Target SoC (fixed %)",
