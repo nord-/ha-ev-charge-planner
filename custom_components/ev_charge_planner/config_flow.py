@@ -197,6 +197,22 @@ class EVChargePlannerOptionsFlow(config_entries.OptionsFlow):
 
         schema = vol.Schema(
             {
+                vol.Required(
+                    CONF_SOC_SENSOR,
+                    default=current.get(CONF_SOC_SENSOR, ""),
+                ): str,
+                vol.Required(
+                    CONF_BATTERY_CAPACITY,
+                    default=current.get(CONF_BATTERY_CAPACITY),
+                ): vol.Coerce(float),
+                vol.Required(
+                    CONF_DEADLINE_ENTITY,
+                    default=current.get(CONF_DEADLINE_ENTITY, ""),
+                ): str,
+                vol.Required(
+                    CONF_PRICE_SENSOR,
+                    default=current.get(CONF_PRICE_SENSOR, ""),
+                ): str,
                 vol.Optional(
                     CONF_ENABLED_ENTITY,
                     description={"suggested_value": current.get(CONF_ENABLED_ENTITY, "")},

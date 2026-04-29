@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.4.4] - 2026-04-29
+
+### Fixed
+- Options flow edit form now includes `deadline_entity`, `soc_sensor`, `battery_capacity`, and `price_sensor` so they can be changed after initial setup. Previously a wrong/blank `deadline_entity` could only be corrected by removing and re-adding the integration, and the deadline would silently fall back to `now + 8h`.
+
 ## [0.4.3] - 2026-03-27
 
 ### Fixed
